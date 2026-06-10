@@ -86,6 +86,34 @@ main{padding:16px;padding-bottom:calc(90px + env(safe-area-inset-bottom));max-wi
 /* ===== Quote ===== */
 .quote{border-left:3px solid var(--amber);padding:10px 14px;font-style:italic;color:#d6d3d1;background:var(--card);border-radius:0 12px 12px 0;margin-bottom:12px}
 
+/* ===== Goal card ===== */
+.goal-card{border-color:var(--amber)}
+.goal-card .goal-text{font-size:14px;color:#d6d3d1;line-height:1.65}
+
+/* ===== Phase progress bar ===== */
+.phase-bar{height:12px;background:var(--bg2);border-radius:999px;overflow:hidden;margin:10px 0 8px}
+.phase-bar div{height:100%;background:var(--amber);width:0%;transition:width .4s}
+
+/* ===== Rest timer ===== */
+#restTimer{
+  position:fixed;left:50%;transform:translateX(-50%);
+  bottom:calc(14px + env(safe-area-inset-bottom));z-index:90;
+  background:var(--card);border:1px solid var(--amber);color:var(--amber);
+  border-radius:999px;padding:11px 24px;font-family:var(--mono);
+  font-size:18px;font-weight:700;display:none;cursor:pointer;white-space:nowrap;
+  box-shadow:0 4px 20px rgba(0,0,0,.55);
+}
+#restTimer.show{display:block}
+#restTimer.finished{background:var(--amber);color:#0a0a0a}
+body:not(.workout-mode) #restTimer{bottom:calc(64px + env(safe-area-inset-bottom))}
+
+/* ===== Distraction-free workout ===== */
+body.workout-mode nav{display:none}
+.workout-back{
+  background:none;border:1px solid var(--border);color:var(--amber);
+  border-radius:8px;padding:6px 14px;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:10px;
+}
+
 /* ===== Alerts ===== */
 .alert-red{border:1px solid var(--red);background:rgba(239,68,68,.08);color:#fca5a5;border-radius:10px;padding:10px 14px;margin-bottom:10px;font-size:14px}
 .banner-amber{border:1px solid var(--amber);background:rgba(245,158,11,.1);color:#fbbf24;border-radius:10px;padding:10px 14px;margin-bottom:10px;font-size:13px;display:flex;align-items:center;justify-content:space-between;gap:10px}
@@ -217,6 +245,14 @@ nav button.on{color:var(--amber)}
   <!-- ============ HOME ============ -->
   <section id="tab-home" class="tab-panel active">
     <div id="sundayBanner"></div>
+    <div class="card goal-card">
+      <h2>Your Goal</h2>
+      <div class="goal-text">
+        Build thighs, biceps, shoulders, chest and face definition.<br>
+        This takes 18–24 months of non-negotiable discipline.<br>
+        <strong style="color:var(--amber)">Started June 11, 2026. No stopping.</strong>
+      </div>
+    </div>
     <div class="card">
       <div class="label" id="homeDate">—</div>
       <h1 id="homeDayType" style="font-size:24px;margin:4px 0 2px">—</h1>
@@ -234,7 +270,11 @@ nav button.on{color:var(--amber)}
       <div class="stat"><div class="v" id="statDay">1</div><div class="l">Day</div></div>
       <div class="stat"><div class="v" id="statPhase">—</div><div class="l" id="statPhaseLabel">To Phase 1</div></div>
     </div>
-    <div style="height:12px"></div>
+    <div class="card" style="margin-top:12px">
+      <h2>Phase 1 Progress</h2>
+      <div class="phase-bar"><div id="phaseFill"></div></div>
+      <div class="tag" id="phaseBarText">—</div>
+    </div>
     <div id="homeAlerts"></div>
     <div class="quote" id="homeQuote">—</div>
     <div class="card">
@@ -253,6 +293,7 @@ nav button.on{color:var(--amber)}
 
   <!-- ============ WORKOUT ============ -->
   <section id="tab-workout" class="tab-panel">
+    <button class="workout-back" onclick="switchTab('home')" aria-label="Back to Home">← Home</button>
     <div id="workoutHeader"></div>
     <div id="warmupBox"></div>
     <div id="exerciseList"></div>
@@ -357,6 +398,8 @@ nav button.on{color:var(--amber)}
   <div class="modal" id="sheetContent"></div>
 </div>
 
+<div id="restTimer" onclick="dismissRestTimer()" title="Tap to dismiss"></div>
+
 <nav>
   <button data-tab="home" class="on"><span class="ico">🏠</span>Home</button>
   <button data-tab="workout"><span class="ico">💪</span>Workout</button>
@@ -420,6 +463,25 @@ const QUOTES = [
   "Skipping is a negotiation you lose every time.",
   "MH370 — still flying.",
   "The version of you that stops was never the real one."
+];
+
+/* ---------- 15 Christian scriptures — rotate together with the quotes ---------- */
+const SCRIPTURES = [
+  '"I can do all things through Christ who strengthens me." — Philippians 4:13',
+  '"No, I strike a blow to my body and make it my slave." — 1 Corinthians 9:27',
+  '"For physical training is of some value, but godliness has value for all things." — 1 Timothy 4:8',
+  '"For God gave us a spirit not of fear but of power and love and self-control." — 2 Timothy 1:7',
+  '"Those who hope in the Lord will renew their strength. They will soar on wings like eagles; they will run and not grow weary." — Isaiah 40:31',
+  '"Do you not know that your bodies are temples of the Holy Spirit? Therefore honor God with your bodies." — 1 Corinthians 6:19–20',
+  '"Be strong and courageous. Do not be afraid; do not be discouraged, for the Lord your God will be with you wherever you go." — Joshua 1:9',
+  '"The soul of the sluggard craves and gets nothing, while the soul of the diligent is richly supplied." — Proverbs 13:4',
+  '"Whatever you do, work at it with all your heart, as working for the Lord, not for human masters." — Colossians 3:23',
+  '"Let us not become weary in doing good, for at the proper time we will reap a harvest if we do not give up." — Galatians 6:9',
+  '"Commit your work to the Lord, and your plans will be established." — Proverbs 16:3',
+  '"For we are God\'s handiwork, created in Christ Jesus to do good works." — Ephesians 2:10',
+  '"Run in such a way as to get the prize. Everyone who competes trains with strict discipline." — 1 Corinthians 9:24–25',
+  '"The plans of the diligent lead to profit as surely as haste leads to poverty." — Proverbs 21:5',
+  '"Be watchful, stand firm in the faith, act like men, be strong." — 1 Corinthians 16:13'
 ];
 
 /* ---------- Warm-up protocol (every session) ---------- */
@@ -1135,11 +1197,11 @@ function computeStreak() {
   return streak;
 }
 
-/* ---------- Quote of the day (built-in + custom, rotates daily) ---------- */
+/* ---------- Quote of the day (30 quotes + 15 scriptures + custom, rotates by journey day) ---------- */
 function quoteOfTheDay() {
-  const pool = QUOTES.concat(state.custom_quotes || []);
-  const days = daysSinceStart();
-  return pool[((days % pool.length) + pool.length) % pool.length];
+  const pool = QUOTES.concat(SCRIPTURES, state.custom_quotes || []);
+  const idx = daysSinceStart() - 1; // Day 1 = entry 1
+  return pool[((idx % pool.length) + pool.length) % pool.length];
 }
 function daysSinceStart() {
   const ms = new Date(todayStr()) - new Date(state.start_date);
@@ -1193,6 +1255,8 @@ function switchTab(name) {
     document.getElementById('tab-' + t).classList.toggle('active', t === name);
   });
   document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.tab === name));
+  // distraction-free training: hide bottom nav while in the Workout tab
+  document.body.classList.toggle('workout-mode', name === 'workout');
   renderAll();
 }
 
@@ -1269,8 +1333,18 @@ function renderHome() {
       ).join('')
     : '';
 
-  // quote of the day
-  document.getElementById('homeQuote').textContent = '"' + quoteOfTheDay() + '"';
+  // quote / scripture of the day (scriptures already carry their own quotes + reference)
+  const q = quoteOfTheDay();
+  document.getElementById('homeQuote').textContent = q.startsWith('"') ? q : '"' + q + '"';
+
+  // phase 1 progress bar — amber fill from Day 1 to the Phase 1 target
+  const p1 = PLAN.phases[0];
+  const totalDays = Math.max(1, Math.round((new Date(p1.date) - new Date(state.start_date)) / 86400000));
+  const elapsed = Math.min(Math.max(Math.round((new Date(todayStr()) - new Date(state.start_date)) / 86400000), 0), totalDays);
+  const pct = Math.round(elapsed / totalDays * 100);
+  document.getElementById('phaseFill').style.width = pct + '%';
+  document.getElementById('phaseBarText').textContent =
+    pct + '% complete · ' + Math.max(daysUntil(p1.date), 0) + ' days to Phase 1 · September 11, 2026';
 
   // journey / phases
   document.getElementById('homePhases').innerHTML = PLAN.phases.map(p => {
@@ -1429,6 +1503,44 @@ function toggleSet(i, s) {
   log.sets[i][s] = !log.sets[i][s];
   save();
   renderWorkout();
+  if (log.sets[i][s]) startRestTimer(i); // set completed → rest begins
+}
+
+/* ---------- Rest timer — auto-starts after each completed set ----------
+   2 min for compounds (bench, squat, deadlift, row, overhead press),
+   90 s for isolation work. Vibrates when done. Tap to dismiss early. */
+let restTick = null, restDoneTimeout = null;
+function isCompound(name) {
+  const n = name.toLowerCase();
+  return ['bench', 'squat', 'deadlift', 'row', 'overhead press'].some(k => n.includes(k));
+}
+function startRestTimer(exIdx) {
+  const ex = DAYS[new Date().getDay()].exercises[exIdx];
+  if (!ex) return;
+  const secs = isCompound(ex.name) ? 120 : 90;
+  const el = document.getElementById('restTimer');
+  clearInterval(restTick); clearTimeout(restDoneTimeout);
+  el.classList.remove('finished');
+  el.classList.add('show');
+  const end = Date.now() + secs * 1000;
+  const paint = () => {
+    const left = Math.max(0, Math.round((end - Date.now()) / 1000));
+    if (left > 0) {
+      el.textContent = '⏱ ' + Math.floor(left / 60) + ':' + String(left % 60).padStart(2, '0') + ' rest';
+      return;
+    }
+    clearInterval(restTick);
+    el.classList.add('finished');
+    el.textContent = 'Rest done — go!';
+    if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+    restDoneTimeout = setTimeout(dismissRestTimer, 6000);
+  };
+  paint();
+  restTick = setInterval(paint, 500);
+}
+function dismissRestTimer() {
+  clearInterval(restTick); clearTimeout(restDoneTimeout);
+  document.getElementById('restTimer').classList.remove('show', 'finished');
 }
 
 function askExerciseDone(i) {
@@ -1850,9 +1962,14 @@ function reviewDay(ds) {
   const d = new Date(ds);
   const dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
   const title = dayNames[d.getDay()] + ' · ' + ds;
+  const weight = (state.weight_log || []).find(e => e.date === ds);
+  const weightRow = weight
+    ? '<div class="shop-row"><span>Weight logged</span><span class="mono" style="color:var(--amber)">' + weight.kg.toFixed(1) + ' kg</span></div>'
+    : '';
   if (!log) {
     openSheet('<h3>' + title + '</h3><div style="color:var(--muted)">' +
       (d.getDay() === 0 ? 'Rest day — nothing required.' : 'Nothing was logged this day.') + '</div>' +
+      weightRow +
       '<button class="btn" style="width:100%;margin-top:14px" onclick="closeSheet()">Close</button>');
     return;
   }
@@ -1865,6 +1982,7 @@ function reviewDay(ds) {
       '</span></div>'
     ).join('') +
     '<div class="shop-row"><span>Water</span><span class="mono">' + (log.water_ml || 0) + ' ml</span></div>' +
+    weightRow +
     (log.note ? '<div class="label" style="margin-top:10px">Note</div><div style="font-style:italic;margin-top:4px">"' + esc(log.note) + '"</div>' : '') +
     '<button class="btn" style="width:100%;margin-top:16px" onclick="closeSheet()">Close</button>'
   );
@@ -1894,7 +2012,7 @@ document.getElementById('btnAddQuote').addEventListener('click', () => {
 });
 function updateQuoteCount() {
   document.getElementById('quoteCount').textContent =
-    QUOTES.length + ' built-in + ' + state.custom_quotes.length + ' custom — rotating daily';
+    (QUOTES.length + SCRIPTURES.length) + ' built-in (quotes + scriptures) + ' + state.custom_quotes.length + ' custom — rotating daily';
 }
 
 /* --- meal editor --- */
