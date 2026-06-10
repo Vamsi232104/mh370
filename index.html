@@ -1405,5 +1405,396 @@ setInterval(() => {
   }
 }, 60000);
 </script>
+<script>
+'use strict';
+/* =====================================================================
+   MH370 — APP LOGIC (Part 3: Inventory, Log, Calendar, Settings, PWA)
+   ===================================================================== */
+
+/* ---------- Custom ingredients (added via meal editor) ---------- */
+if (!state.custom_ingredients) state.custom_ingredients = [];
+state.custom_ingredients.forEach(ci => {
+  if (!INGREDIENTS.find(i => i.key === ci.key)) INGREDIENTS.push(ci);
+  if (!state.inventory[ci.key]) state.inventory[ci.key] = { unit: ci.unit, stock: 0 };
+});
+
+/* map a meal item's text to a tracked inventory key */
+const ITEM_TO_ING = [
+  ['peanut butter','peanut_butter'], ['sweet potato','sweet_potato'],
+  ['chicken breast','chicken_breast'], ['chicken thigh','chicken_thigh'],
+  ['chicken','chicken_breast'], ['ground beef','ground_beef'], ['beef mince','ground_beef'],
+  ['beef steak','beef_steak'], ['steak','beef_steak'], ['beef','ground_beef'],
+  ['mutton','mutton'], ['tuna','tuna_cans'], ['fish','fish_fillet'],
+  ['rice','rice_dry'], ['oats','oats'], ['pasta','pasta_dry'],
+  ['toast','bread_slices'], ['bread','bread_slices'],
+  ['yogurt','greek_yogurt'], ['milk','milk'], ['almond','almonds'],
+  ['olive oil','olive_oil'], ['broccoli','broccoli'], ['spinach','spinach'],
+  ['salad','mixed_salad_veg'], ['vegetable','mixed_salad_veg'],
+  ['banana','banana'], ['egg','eggs'], ['omelette','eggs']
+];
+function ingredientForItem(text) {
+  const t = text.toLowerCase();
+  if (t.includes('coffee') || t.includes('water')) return null; // not stock-tracked
+  const hit = ITEM_TO_ING.find(p => t.includes(p[0]));
+  return hit ? hit[1] : null;
+}
+
+/* =====================================================================
+   INVENTORY TAB
+   ===================================================================== */
+function renderInventory() {
+  const list = document.getElementById('invList');
+  list.innerHTML = INGREDIENTS.map(i => {
+    const item = state.inventory[i.key] || { stock: 0 };
+    const status = i.weekly > 0 ? invStatus(i.key) : 'green';
+    return '<div class="inv-row">' +
+      '<span class="inv-dot dot-' + status + '"></span>' +
+      '<span class="inv-name">' + esc(i.name) +
+      (i.weekly === 0 ? ' <span class="tag">(flexible)</span>' : '') + '</span>' +
+      '<span class="inv-stock">' + item.stock + ' ' + esc(i.unit) + '</span>' +
+      '<button class="btn small" onclick="openAddStock(\'' + i.key + '\')">+ Add</button>' +
+      '</div>';
+  }).join('');
+}
+
+function openAddStock(key) {
+  const ing = INGREDIENTS.find(i => i.key === key);
+  const item = state.inventory[key];
+  openSheet(
+    '<h3>Add stock — ' + esc(ing.name) + '</h3>' +
+    '<div class="tag" style="margin-bottom:10px">Current: ' + item.stock + ' ' + esc(ing.unit) +
+    (ing.weekly > 0 ? ' · weekly need: ' + ing.weekly + ' ' + esc(ing.unit) : '') + '</div>' +
+    '<input type="number" id="stockQty" min="0" inputmode="numeric" placeholder="Quantity bought (' + esc(ing.unit) + ')">' +
+    '<button class="btn primary" style="width:100%;margin-top:10px" onclick="addStock(\'' + key + '\')">Add to stock</button>' +
+    '<button class="btn" style="width:100%;margin-top:8px" onclick="closeSheet()">Cancel</button>'
+  );
+  setTimeout(() => document.getElementById('stockQty').focus(), 50);
+}
+function addStock(key) {
+  const qty = parseFloat(document.getElementById('stockQty').value);
+  if (!isNaN(qty) && qty > 0) {
+    state.inventory[key].stock += qty;
+    save();
+  }
+  closeSheet();
+  renderAll();
+}
+
+/* ---------- Sunday shopping list: weekly need vs current stock ---------- */
+let shoppingOpen = false;
+document.getElementById('btnShopping').addEventListener('click', () => {
+  shoppingOpen = !shoppingOpen;
+  renderShopping();
+});
+function renderShopping() {
+  const box = document.getElementById('shoppingBox');
+  if (!shoppingOpen) { box.innerHTML = ''; return; }
+  const rows = INGREDIENTS.filter(i => i.weekly > 0).map(i => {
+    const stock = (state.inventory[i.key] || { stock: 0 }).stock;
+    const need = Math.max(0, Math.ceil(i.weekly - stock));
+    return { i, stock, need };
+  });
+  const toBuy = rows.filter(r => r.need > 0);
+  const covered = rows.filter(r => r.need === 0);
+  box.innerHTML = '<div class="card"><h2>🛒 Week Ahead — Buy List</h2>' +
+    (toBuy.length === 0
+      ? '<div class="tag">Fully stocked for the week. Nothing to buy.</div>'
+      : toBuy.map(r =>
+          '<div class="shop-row"><span>' + esc(r.i.name) +
+          ' <span class="tag">(have ' + r.stock + ' / need ' + r.i.weekly + ')</span></span>' +
+          '<span class="shop-need">buy ' + r.need + ' ' + esc(r.i.unit) + '</span></div>'
+        ).join('')) +
+    (covered.length
+      ? '<div class="divider"></div><div class="tag">Covered: ' + covered.map(r => esc(r.i.name)).join(', ') + '</div>'
+      : '') +
+    '</div>';
+}
+
+/* =====================================================================
+   LOG TAB
+   ===================================================================== */
+const CHECKS = [
+  { key: 'workout', label: 'Did the workout' },
+  { key: 'protein', label: 'Hit protein target (140g)' },
+  { key: 'sleep',   label: 'Slept 8 hours' },
+  { key: 'water',   label: 'Drank 3.5L water' }
+];
+
+function renderLog() {
+  const log = getLog(todayStr());
+
+  document.getElementById('logChecks').innerHTML = CHECKS.map(c =>
+    '<div class="check-row' + (log.checks[c.key] ? ' on' : '') + '" onclick="toggleCheck(\'' + c.key + '\')">' +
+    '<span class="checkbox">✓</span><span>' + c.label + '</span></div>'
+  ).join('');
+
+  // water
+  const ml = log.water_ml || 0;
+  document.getElementById('waterFill').style.width = Math.min(100, ml / 3500 * 100) + '%';
+  document.getElementById('waterText').textContent = ml + ' / 3500 ml';
+
+  // note (don't clobber while typing)
+  const noteEl = document.getElementById('logNote');
+  if (document.activeElement !== noteEl) noteEl.value = log.note || '';
+
+  renderCalendar();
+}
+
+function toggleCheck(key) {
+  const log = getLog(todayStr());
+  log.checks[key] = !log.checks[key];
+  save();
+  renderAll();
+}
+
+function addWater(ml) {
+  const log = getLog(todayStr());
+  log.water_ml = (log.water_ml || 0) + ml;
+  if (log.water_ml >= 3500) log.checks.water = true; // target hit — auto-check
+  save();
+  renderAll();
+}
+document.getElementById('btnW250').addEventListener('click', () => addWater(250));
+document.getElementById('btnW500').addEventListener('click', () => addWater(500));
+document.getElementById('logNote').addEventListener('input', e => {
+  getLog(todayStr()).note = e.target.value;
+  save();
+});
+
+/* =====================================================================
+   CALENDAR
+   ===================================================================== */
+const calNow = new Date();
+let calYear = calNow.getFullYear();
+let calMonth = calNow.getMonth();
+
+document.getElementById('calPrev').addEventListener('click', () => {
+  calMonth--; if (calMonth < 0) { calMonth = 11; calYear--; }
+  renderCalendar();
+});
+document.getElementById('calNext').addEventListener('click', () => {
+  calMonth++; if (calMonth > 11) { calMonth = 0; calYear++; }
+  renderCalendar();
+});
+
+function renderCalendar() {
+  const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  document.getElementById('calTitle').textContent = months[calMonth] + ' ' + calYear;
+
+  const today = todayStr();
+  let html = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(d => '<div class="cal-dow">' + d + '</div>').join('');
+
+  const first = new Date(calYear, calMonth, 1);
+  const offset = (first.getDay() + 6) % 7; // Monday-first grid
+  for (let i = 0; i < offset; i++) html += '<div class="cal-day empty"></div>';
+
+  const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dt = new Date(calYear, calMonth, d);
+    const ds = todayStr(dt);
+    const isToday = ds === today;
+    const isFuture = ds > today;
+    const isSunday = dt.getDay() === 0;
+    let cls = 'cal-day', click = '';
+    if (isFuture) cls += ' future';
+    else if (isSunday) { cls += ' rest'; click = ' onclick="reviewDay(\'' + ds + '\')"'; }
+    else {
+      const log = state.daily_logs[ds];
+      const c = log ? countChecks(log) : 0;
+      if (log || ds >= state.start_date) cls += c === 4 ? ' green' : (c >= 2 ? ' orange' : ' red');
+      click = ' onclick="reviewDay(\'' + ds + '\')"';
+    }
+    if (isToday) cls += ' today';
+    html += '<div class="' + cls + '"' + click + '>' + d + '</div>';
+  }
+  document.getElementById('calGrid').innerHTML = html;
+
+  // totals across the whole journey
+  let green = 0, orange = 0, training = 0;
+  Object.keys(state.daily_logs).forEach(ds => {
+    if (ds > today) return;
+    const c = countChecks(state.daily_logs[ds]);
+    if (c === 4) green++;
+    else if (c >= 2) orange++;
+    if (c >= 2) training++;
+  });
+  document.getElementById('calTotals').textContent =
+    'Total green days: ' + green + ' | Total orange days: ' + orange + ' | Total training days: ' + training;
+}
+
+function reviewDay(ds) {
+  const log = state.daily_logs[ds];
+  const d = new Date(ds);
+  const dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const title = dayNames[d.getDay()] + ' · ' + ds;
+  if (!log) {
+    openSheet('<h3>' + title + '</h3><div style="color:var(--muted)">' +
+      (d.getDay() === 0 ? 'Rest day — nothing required.' : 'Nothing was logged this day.') + '</div>' +
+      '<button class="btn" style="width:100%;margin-top:14px" onclick="closeSheet()">Close</button>');
+    return;
+  }
+  openSheet(
+    '<h3>' + title + '</h3>' +
+    '<div class="tag" style="margin-bottom:8px">Session: ' + (log.session === 'pm' ? 'Evening' : 'Morning') + '</div>' +
+    CHECKS.map(c =>
+      '<div class="shop-row"><span>' + c.label + '</span><span>' +
+      (log.checks && log.checks[c.key] ? '<span style="color:var(--green)">✓ done</span>' : '<span style="color:var(--red)">✗</span>') +
+      '</span></div>'
+    ).join('') +
+    '<div class="shop-row"><span>Water</span><span class="mono">' + (log.water_ml || 0) + ' ml</span></div>' +
+    (log.note ? '<div class="label" style="margin-top:10px">Note</div><div style="font-style:italic;margin-top:4px">"' + esc(log.note) + '"</div>' : '') +
+    '<button class="btn" style="width:100%;margin-top:16px" onclick="closeSheet()">Close</button>'
+  );
+}
+
+/* =====================================================================
+   SETTINGS
+   ===================================================================== */
+const settingsModal = document.getElementById('settingsModal');
+document.getElementById('btnSettings').addEventListener('click', () => {
+  initSettings();
+  settingsModal.classList.add('show');
+});
+document.getElementById('btnCloseSettings').addEventListener('click', () => settingsModal.classList.remove('show'));
+settingsModal.addEventListener('click', e => { if (e.target === settingsModal) settingsModal.classList.remove('show'); });
+
+/* --- custom quotes --- */
+document.getElementById('btnAddQuote').addEventListener('click', () => {
+  const inp = document.getElementById('quoteInput');
+  const q = inp.value.trim();
+  if (!q) return;
+  state.custom_quotes.push(q);
+  save();
+  inp.value = '';
+  updateQuoteCount();
+  renderHome();
+});
+function updateQuoteCount() {
+  document.getElementById('quoteCount').textContent =
+    QUOTES.length + ' built-in + ' + state.custom_quotes.length + ' custom — rotating daily';
+}
+
+/* --- meal editor --- */
+const editDay = document.getElementById('editDay');
+const editSession = document.getElementById('editSession');
+const editMeal = document.getElementById('editMeal');
+const editItems = document.getElementById('editItems');
+
+function initSettings() {
+  updateQuoteCount();
+  if (!editDay.options.length) {
+    [['1','Monday'],['2','Tuesday'],['3','Wednesday'],['4','Thursday'],['5','Friday'],['6','Saturday']]
+      .forEach(([v, n]) => editDay.add(new Option(n, v)));
+  }
+  document.getElementById('startDateInput').value = state.start_date;
+  refreshMealOptions();
+}
+function refreshMealOptions() {
+  const dow = parseInt(editDay.value || '1', 10);
+  const sess = editSession.value;
+  editMeal.innerHTML = '';
+  mealsFor(dow, sess).forEach((m, idx) => {
+    if (!m.workout) editMeal.add(new Option(m.time + ' — ' + m.label, idx));
+  });
+  refreshMealItems();
+}
+function refreshMealItems() {
+  const dow = parseInt(editDay.value || '1', 10);
+  const sess = editSession.value;
+  const idx = parseInt(editMeal.value, 10);
+  const meals = mealsFor(dow, sess);
+  editItems.value = (meals[idx] && meals[idx].items) ? meals[idx].items.join('\n') : '';
+}
+editDay.addEventListener('change', refreshMealOptions);
+editSession.addEventListener('change', refreshMealOptions);
+editMeal.addEventListener('change', refreshMealItems);
+
+document.getElementById('btnSaveMeal').addEventListener('click', () => {
+  const dow = parseInt(editDay.value, 10);
+  const sess = editSession.value;
+  const idx = parseInt(editMeal.value, 10);
+  if (isNaN(idx)) return;
+  const items = editItems.value.split('\n').map(s => s.trim()).filter(Boolean);
+  if (!items.length) return;
+  state.meal_config_overrides[dow + '|' + sess + '|' + idx] = items;
+  // auto inventory update: make sure every edited-in food is a tracked item
+  items.forEach(it => {
+    let key = ingredientForItem(it);
+    if (key === null && !it.toLowerCase().includes('coffee') && !it.toLowerCase().includes('water')) {
+      key = it.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 30);
+      if (key && !INGREDIENTS.find(i => i.key === key)) {
+        const ci = { key, name: it, unit: 'units', weekly: 7 };
+        INGREDIENTS.push(ci);
+        state.custom_ingredients.push(ci);
+      }
+    }
+    if (key && !state.inventory[key]) {
+      const ing = INGREDIENTS.find(i => i.key === key);
+      state.inventory[key] = { unit: ing ? ing.unit : 'units', stock: 0 };
+    }
+  });
+  save();
+  renderAll();
+  settingsModal.classList.remove('show');
+});
+
+/* --- start date override --- */
+document.getElementById('btnSaveStart').addEventListener('click', () => {
+  const v = document.getElementById('startDateInput').value;
+  if (v) { state.start_date = v; save(); renderAll(); }
+});
+
+/* --- export / import JSON --- */
+document.getElementById('btnExport').addEventListener('click', () => {
+  const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'mh370_backup_' + todayStr() + '.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
+document.getElementById('btnImport').addEventListener('click', () => document.getElementById('importFile').click());
+document.getElementById('importFile').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const data = JSON.parse(reader.result);
+      if (!data || typeof data !== 'object' || !data.inventory || !data.start_date) {
+        alert('Not a valid MH370 backup file.');
+        return;
+      }
+      state = data;
+      const d = defaultState();
+      for (const k of Object.keys(d)) if (state[k] === undefined) state[k] = d[k];
+      if (!state.custom_ingredients) state.custom_ingredients = [];
+      state.custom_ingredients.forEach(ci => {
+        if (!INGREDIENTS.find(i => i.key === ci.key)) INGREDIENTS.push(ci);
+      });
+      save();
+      renderAll();
+      settingsModal.classList.remove('show');
+      alert('Backup restored.');
+    } catch (err) {
+      alert('Could not read that file.');
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+});
+
+/* =====================================================================
+   PWA — service worker
+   ===================================================================== */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  });
+}
+
+/* initial paint now that all tabs have logic */
+renderAll();
+</script>
 </body>
 </html>
