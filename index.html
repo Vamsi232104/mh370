@@ -1013,7 +1013,397 @@ const INGREDIENTS = [
 /* Logic added in Parts 2 & 3 */
 </script>
 <script>
-/* MH370 app logic — Parts 2 & 3 */
+'use strict';
+/* =====================================================================
+   MH370 — APP LOGIC (Part 2: state, nav, Home, Workout, Meals)
+   ===================================================================== */
+
+/* ---------- State ---------- */
+const DOW_KEYS = ['sun','mon','tue','wed','thu','fri','sat'];
+
+function defaultState() {
+  const inv = {};
+  INGREDIENTS.forEach(i => { inv[i.key] = { unit: i.unit, stock: 0 }; });
+  // starting stock from the master plan schema
+  Object.assign(inv, {
+    banana:         { unit: 'pieces', stock: 10 },
+    eggs:           { unit: 'pieces', stock: 18 },
+    chicken_breast: { unit: 'grams',  stock: 600 },
+    ground_beef:    { unit: 'grams',  stock: 400 },
+    mutton:         { unit: 'grams',  stock: 0 },
+    tuna_cans:      { unit: 'cans',   stock: 4 },
+    rice_dry:       { unit: 'grams',  stock: 1000 },
+    oats:           { unit: 'grams',  stock: 300 },
+    sweet_potato:   { unit: 'grams',  stock: 600 },
+    greek_yogurt:   { unit: 'grams',  stock: 450 },
+    milk:           { unit: 'ml',     stock: 750 },
+    peanut_butter:  { unit: 'grams',  stock: 200 },
+    broccoli:       { unit: 'grams',  stock: 400 },
+    olive_oil:      { unit: 'ml',     stock: 200 }
+  });
+  return {
+    start_date: PLAN.startDate,
+    last_opened: todayStr(),
+    session_preference: { mon:'am', tue:'am', wed:'am', thu:'am', fri:'am', sat:'am', sun:'am' },
+    daily_logs: {},
+    inventory: inv,
+    meal_config_overrides: {},
+    custom_quotes: [],
+    settings: { theme: 'dark', quote_index: 0 }
+  };
+}
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (!raw) return defaultState();
+    const s = JSON.parse(raw);
+    const d = defaultState();
+    // merge so new fields appear after updates
+    for (const k of Object.keys(d)) if (s[k] === undefined) s[k] = d[k];
+    INGREDIENTS.forEach(i => { if (!s.inventory[i.key]) s.inventory[i.key] = { unit: i.unit, stock: 0 }; });
+    return s;
+  } catch (e) { return defaultState(); }
+}
+
+function save() { localStorage.setItem(LS_KEY, JSON.stringify(state)); }
+
+function todayStr(d) {
+  d = d || new Date();
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+
+let state = loadState();
+state.last_opened = todayStr();
+save();
+
+/* ---------- Daily log helpers ---------- */
+function getLog(dateStr) {
+  if (!state.daily_logs[dateStr]) {
+    state.daily_logs[dateStr] = {
+      session: currentSession(),
+      checks: { workout:false, protein:false, sleep:false, water:false },
+      note: '', water_ml: 0, sets: {}
+    };
+  }
+  const l = state.daily_logs[dateStr];
+  if (!l.checks) l.checks = { workout:false, protein:false, sleep:false, water:false };
+  if (l.water_ml === undefined) l.water_ml = 0;
+  if (!l.sets) l.sets = {};
+  return l;
+}
+function countChecks(log) { return Object.values(log.checks || {}).filter(Boolean).length; }
+
+function currentSession() {
+  const k = DOW_KEYS[new Date().getDay()];
+  return (state.session_preference && state.session_preference[k]) || 'am';
+}
+
+/* ---------- Streak: consecutive days with ≥2 checks; Sunday never breaks ---------- */
+function computeStreak() {
+  let streak = 0;
+  const today = todayStr();
+  const d = new Date();
+  for (let i = 0; i < 1500; i++) {
+    const ds = todayStr(d);
+    if (ds < state.start_date) break;
+    if (d.getDay() !== 0) { // Sunday is planned rest — never breaks
+      const log = state.daily_logs[ds];
+      const c = log ? countChecks(log) : 0;
+      if (c >= 2) streak++;
+      else if (ds !== today) break; // today still in progress doesn't break
+    }
+    d.setDate(d.getDate() - 1);
+  }
+  return streak;
+}
+
+/* ---------- Quote of the day (built-in + custom, rotates daily) ---------- */
+function quoteOfTheDay() {
+  const pool = QUOTES.concat(state.custom_quotes || []);
+  const days = daysSinceStart();
+  return pool[((days % pool.length) + pool.length) % pool.length];
+}
+function daysSinceStart() {
+  const ms = new Date(todayStr()) - new Date(state.start_date);
+  return Math.floor(ms / 86400000) + 1; // Day 1 = start date
+}
+
+/* ---------- Phases ---------- */
+function nextPhase() {
+  const today = todayStr();
+  for (const p of PLAN.phases) if (p.date >= today) return p;
+  return PLAN.phases[PLAN.phases.length - 1];
+}
+function daysUntil(dateStr) {
+  return Math.ceil((new Date(dateStr) - new Date(todayStr())) / 86400000);
+}
+
+/* ---------- Inventory status (green ≥2 days, yellow ≥1 day, red <1 day) ---------- */
+function invDaysLeft(key) {
+  const ing = INGREDIENTS.find(i => i.key === key);
+  const item = state.inventory[key];
+  if (!ing || !item) return Infinity;
+  const daily = ing.weekly / 7;
+  if (daily <= 0) return Infinity; // flexible items (mutton) never alert
+  return item.stock / daily;
+}
+function invStatus(key) {
+  const d = invDaysLeft(key);
+  if (d >= 2) return 'green';
+  if (d >= 1) return 'yellow';
+  return 'red';
+}
+
+/* ---------- Meal config (with Settings overrides) ---------- */
+function mealsFor(dow, session) {
+  const base = MEALS[dow] ? MEALS[dow][session] : [];
+  const ov = state.meal_config_overrides || {};
+  return base.map((m, idx) => {
+    const key = dow + '|' + session + '|' + idx;
+    if (ov[key]) return Object.assign({}, m, { items: ov[key] });
+    return m;
+  });
+}
+
+/* ---------- Tab navigation ---------- */
+const tabs = ['home','workout','meals','inventory','log'];
+document.querySelectorAll('nav button').forEach(btn => {
+  btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+});
+function switchTab(name) {
+  tabs.forEach(t => {
+    document.getElementById('tab-' + t).classList.toggle('active', t === name);
+  });
+  document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.tab === name));
+  renderAll();
+}
+
+/* ---------- Sheet modal ---------- */
+const sheetModal = document.getElementById('sheetModal');
+const sheetContent = document.getElementById('sheetContent');
+function openSheet(html) {
+  sheetContent.innerHTML = html;
+  sheetModal.classList.add('show');
+}
+sheetModal.addEventListener('click', e => { if (e.target === sheetModal) sheetModal.classList.remove('show'); });
+function closeSheet() { sheetModal.classList.remove('show'); }
+
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/* =====================================================================
+   HOME TAB
+   ===================================================================== */
+function renderHome() {
+  const now = new Date();
+  const dow = now.getDay();
+  const day = DAYS[dow];
+  const dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+  document.getElementById('homeDate').textContent =
+    dayNames[dow] + ', ' + months[now.getMonth()] + ' ' + now.getDate() + ', ' + now.getFullYear();
+  document.getElementById('homeDayType').textContent = dayNames[dow] + ' — ' + day.type;
+  document.getElementById('homeSessionTime').textContent =
+    dow === 0 ? 'Recovery · Sunday Shopping List day' : day.sub + ' · ' + day.duration + ' min';
+
+  // session toggle
+  const sess = currentSession();
+  document.querySelectorAll('#sessionToggle button').forEach(b => {
+    b.classList.toggle('on', b.dataset.session === sess);
+  });
+
+  // stats
+  document.getElementById('statStreak').textContent = computeStreak();
+  document.getElementById('statDay').textContent = Math.max(daysSinceStart(), 0);
+  const phase = nextPhase();
+  const phaseNum = PLAN.phases.indexOf(phase) + 1;
+  document.getElementById('statPhase').textContent = Math.max(daysUntil(phase.date), 0);
+  document.getElementById('statPhaseLabel').textContent =
+    phaseNum <= 3 ? 'Days to Phase ' + phaseNum : 'To Ultimate';
+
+  // red inventory alerts
+  const alerts = INGREDIENTS.filter(i => i.weekly > 0 && invStatus(i.key) === 'red');
+  document.getElementById('homeAlerts').innerHTML = alerts.length
+    ? alerts.map(i =>
+        '<div class="alert-red">🔴 <strong>' + esc(i.name) + '</strong> critical — ' +
+        state.inventory[i.key].stock + ' ' + i.unit + ' left. Restock before today\'s meals.</div>'
+      ).join('')
+    : '';
+
+  // quote of the day
+  document.getElementById('homeQuote').textContent = '"' + quoteOfTheDay() + '"';
+
+  // journey / phases
+  document.getElementById('homePhases').innerHTML = PLAN.phases.map(p => {
+    const passed = p.date < todayStr();
+    const dleft = daysUntil(p.date);
+    return '<div class="shop-row"><span style="' + (passed ? 'color:var(--green)' : '') + '">' +
+      (passed ? '✓ ' : '') + esc(p.name) + '</span>' +
+      '<span class="mono" style="color:var(--muted);font-size:12px">' +
+      p.date + (passed ? '' : ' · ' + dleft + 'd') + '</span></div>';
+  }).join('');
+}
+
+document.querySelectorAll('#sessionToggle button').forEach(b => {
+  b.addEventListener('click', () => {
+    const k = DOW_KEYS[new Date().getDay()];
+    state.session_preference[k] = b.dataset.session;
+    getLog(todayStr()).session = b.dataset.session;
+    save();
+    renderAll();
+  });
+});
+
+/* =====================================================================
+   WORKOUT TAB
+   ===================================================================== */
+let warmupOpen = false;
+const openExercises = new Set();
+
+function renderWorkout() {
+  const dow = new Date().getDay();
+  const day = DAYS[dow];
+  const sess = currentSession();
+  const startTime = sess === 'am' ? '6:00 AM' : '6:00 PM';
+
+  document.getElementById('workoutHeader').innerHTML =
+    '<div class="card"><div class="label">Today\'s Session</div>' +
+    '<h1 style="font-size:22px;margin:4px 0 2px">' + esc(day.type) + '</h1>' +
+    '<div class="tag">' + esc(day.sub) + (day.duration ? ' · ' + day.duration + ' min · starts ' + startTime : '') + '</div>' +
+    '<div class="divider"></div><div style="font-size:13px;color:#a8a29e">' + esc(day.builds) + '</div></div>';
+
+  if (dow === 0) {
+    document.getElementById('warmupBox').innerHTML = '';
+    document.getElementById('exerciseList').innerHTML =
+      '<div class="card" style="text-align:center;padding:30px"><div style="font-size:34px">😴</div>' +
+      '<h2 style="margin-top:8px">Full Rest</h2>' +
+      '<div style="color:var(--muted);font-size:14px;margin-top:6px">Muscle is built during recovery. Eat, hydrate, sleep. Check the Sunday Shopping List.</div></div>';
+    return;
+  }
+
+  // warm-up (collapsible)
+  const isLegDay = (dow === 3 || dow === 6);
+  let wu = '<div class="ex' + (warmupOpen ? ' open' : '') + '" id="warmupCard">' +
+    '<div class="ex-head" onclick="toggleWarmup()"><div><div class="nm">🔥 Warm-Up Protocol</div>' +
+    '<div class="tag">10 minutes — before touching any weight</div></div>' +
+    '<div class="scheme">' + (warmupOpen ? '▲' : '▼') + '</div></div>' +
+    '<div class="ex-body"><div style="margin-top:10px;font-size:13px;color:var(--muted)">Cold muscles tear. This is how people get injured in month 1 and quit forever.</div>';
+  WARMUP.steps.forEach((s, i) => {
+    wu += '<h4>' + (i+1) + '. ' + esc(s.name) + ' — ' + esc(s.time) + '</h4><div>' + esc(s.how) + '</div>' +
+      (s.yt ? '<a class="yt-link" href="' + s.yt + '" target="_blank" rel="noopener">Watch</a>' : '');
+  });
+  if (isLegDay) {
+    wu += '<h4>Leg day extra (after step 5)</h4><div>' +
+      WARMUP.legExtra.map(esc).join('<br>') + '</div>';
+  }
+  wu += '</div></div>';
+  document.getElementById('warmupBox').innerHTML = wu;
+
+  // exercises with set trackers
+  const log = getLog(todayStr());
+  document.getElementById('exerciseList').innerHTML = day.exercises.map((ex, i) => {
+    const done = log.sets[i] || [];
+    const isOpen = openExercises.has(i);
+    let h = '<div class="ex' + (isOpen ? ' open' : '') + '">' +
+      '<div class="ex-head" onclick="toggleEx(' + i + ')"><div class="nm">' + (i+1) + '. ' + esc(ex.name) + '</div>' +
+      '<div class="scheme">' + ex.sets + ' × ' + esc(ex.reps) + '</div></div>' +
+      '<div class="sets">';
+    for (let s = 0; s < ex.sets; s++) {
+      h += '<button class="set-btn' + (done[s] ? ' done' : '') + '" onclick="toggleSet(' + i + ',' + s + ')">Set ' + (s+1) + (done[s] ? ' ✓' : '') + '</button>';
+    }
+    h += '</div><div class="ex-body">' +
+      '<h4>What it is</h4><div>' + esc(ex.what) + '</div>' +
+      '<h4>Why it\'s in your plan</h4><div>' + esc(ex.why) + '</div>' +
+      '<h4>How to do it</h4><ol>' + ex.how.map(st => '<li>' + esc(st) + '</li>').join('') + '</ol>' +
+      '<h4>Most common mistake</h4><div>' + esc(ex.mistake) + '</div>' +
+      '<h4>Starting weight</h4><div>' + esc(ex.weight) + '</div>' +
+      '<a class="yt-link" href="' + ex.yt + '" target="_blank" rel="noopener">Watch tutorial</a>' +
+      '</div></div>';
+    return h;
+  }).join('');
+}
+
+function toggleWarmup() { warmupOpen = !warmupOpen; renderWorkout(); }
+function toggleEx(i) {
+  if (openExercises.has(i)) openExercises.delete(i); else openExercises.add(i);
+  renderWorkout();
+}
+function toggleSet(i, s) {
+  event.stopPropagation();
+  const log = getLog(todayStr()); // keyed by date → resets at midnight automatically
+  if (!log.sets[i]) log.sets[i] = [];
+  log.sets[i][s] = !log.sets[i][s];
+  save();
+  renderWorkout();
+}
+
+/* =====================================================================
+   MEALS TAB
+   ===================================================================== */
+function renderMeals() {
+  const dow = new Date().getDay();
+  const sess = currentSession();
+  const dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const mealDay = MEALS[dow];
+
+  document.getElementById('mealsHeader').innerHTML =
+    '<div class="card"><div class="label">' + dayNames[dow] + ' · ' + (sess === 'am' ? 'Morning session' : 'Evening session') + '</div>' +
+    '<div style="font-size:14px;color:#d6d3d1;margin-top:6px">' + esc(mealDay.whyToday) + '</div>' +
+    '<div class="tag" style="margin-top:8px">Targets: 2,700 kcal · 140g protein · 3.5L water · tap any food for WHY</div></div>';
+
+  document.getElementById('mealTimeline').innerHTML = mealsFor(dow, sess).map(m => {
+    if (m.workout) {
+      return '<div class="meal workout-block"><span class="time">' + esc(m.time) + '</span>' +
+        '<div class="mlabel">' + (m.label === 'SLEEP' ? '😴 ' : '💪 ') + esc(m.label) + '</div>' +
+        '<div class="tag">' + esc(m.workout) + '</div></div>';
+    }
+    return '<div class="meal"><span class="time">' + esc(m.time) + '</span>' +
+      '<div class="mlabel">' + esc(m.label) + '</div><div>' +
+      m.items.map(it => '<span class="food-item" onclick="showFoodWhy(this.textContent)">' + esc(it) + '</span>').join('') +
+      '</div></div>';
+  }).join('');
+}
+
+function showFoodWhy(item) {
+  const lower = item.toLowerCase();
+  const hit = FOOD_WHY.find(f => f.match.some(m => lower.includes(m)));
+  if (!hit) {
+    openSheet('<h3>' + esc(item) + '</h3><div style="color:var(--muted)">Part of today\'s plan — supports the 2,700 kcal / 140g protein targets.</div>' +
+      '<button class="btn" style="width:100%;margin-top:14px" onclick="closeSheet()">Close</button>');
+    return;
+  }
+  openSheet(
+    '<h3>' + esc(hit.name) + '</h3>' +
+    '<div class="label" style="margin-bottom:4px">Why it\'s here</div>' +
+    '<div style="margin-bottom:10px">' + esc(hit.why) + '</div>' +
+    '<div class="label" style="margin-bottom:4px">When</div>' +
+    '<div class="mono" style="font-size:13px;color:var(--amber)">' + esc(hit.when) + '</div>' +
+    '<button class="btn" style="width:100%;margin-top:16px" onclick="closeSheet()">Close</button>'
+  );
+}
+
+/* ---------- Master render ---------- */
+function renderAll() {
+  renderHome();
+  renderWorkout();
+  renderMeals();
+  if (typeof renderInventory === 'function') renderInventory();
+  if (typeof renderLog === 'function') renderLog();
+}
+renderAll();
+
+/* re-render shortly after midnight so the day flips without reopening */
+setInterval(() => {
+  if (state.last_opened !== todayStr()) {
+    state.last_opened = todayStr();
+    openExercises.clear();
+    save();
+    renderAll();
+  }
+}, 60000);
 </script>
 </body>
 </html>
