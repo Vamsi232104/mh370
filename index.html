@@ -88,6 +88,22 @@ main{padding:16px;padding-bottom:calc(90px + env(safe-area-inset-bottom));max-wi
 
 /* ===== Alerts ===== */
 .alert-red{border:1px solid var(--red);background:rgba(239,68,68,.08);color:#fca5a5;border-radius:10px;padding:10px 14px;margin-bottom:10px;font-size:14px}
+.banner-amber{border:1px solid var(--amber);background:rgba(245,158,11,.1);color:#fbbf24;border-radius:10px;padding:10px 14px;margin-bottom:10px;font-size:13px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.banner-amber button{background:none;border:none;color:#fbbf24;font-size:16px;cursor:pointer;padding:0 4px;flex-shrink:0}
+
+/* ===== Permanent completion states ===== */
+.ex.completed{border-color:var(--green);background:rgba(34,197,94,.10)}
+.meal.done{border-color:var(--green);background:rgba(34,197,94,.10)}
+.done-note{color:var(--green);font-weight:700;font-size:13px;margin-top:8px}
+.btn.complete{width:100%;background:var(--card2);border:1px solid var(--amber-dim);color:var(--amber)}
+
+/* ===== Session lock modal (full-screen, first open of the day) ===== */
+.session-bg{position:fixed;inset:0;background:var(--bg);z-index:200;display:none;align-items:center;justify-content:center;padding:24px}
+.session-bg.show{display:flex}
+.session-box{width:100%;max-width:360px;text-align:center}
+.big-session-btn{display:block;width:100%;padding:18px;font-size:17px;font-weight:800;border-radius:12px;border:1px solid var(--border);background:var(--card);color:var(--text);cursor:pointer;margin-top:12px;letter-spacing:.03em}
+.big-session-btn:active{border-color:var(--amber);color:var(--amber)}
+.big-session-btn.primary{background:var(--amber);border-color:var(--amber);color:#0a0a0a}
 
 /* ===== Exercise list ===== */
 .ex{background:var(--card);border:1px solid var(--border);border-radius:12px;margin-bottom:10px;overflow:hidden}
@@ -200,6 +216,7 @@ nav button.on{color:var(--amber)}
 <main>
   <!-- ============ HOME ============ -->
   <section id="tab-home" class="tab-panel active">
+    <div id="sundayBanner"></div>
     <div class="card">
       <div class="label" id="homeDate">—</div>
       <h1 id="homeDayType" style="font-size:24px;margin:4px 0 2px">—</h1>
@@ -278,6 +295,10 @@ nav button.on{color:var(--amber)}
       <textarea id="logNote" placeholder="How did today go?"></textarea>
     </div>
     <div class="card">
+      <h2>Weight</h2>
+      <div id="weightBox"></div>
+    </div>
+    <div class="card">
       <div class="cal-head">
         <button class="btn small" id="calPrev">‹</button>
         <strong id="calTitle">—</strong>
@@ -288,6 +309,11 @@ nav button.on{color:var(--amber)}
     </div>
   </section>
 </main>
+
+<!-- ============ SESSION LOCK MODAL (full-screen, first open each day) ============ -->
+<div class="session-bg" id="sessionModal">
+  <div class="session-box" id="sessionBox"></div>
+</div>
 
 <!-- ============ SETTINGS MODAL ============ -->
 <div class="modal-bg" id="settingsModal">
@@ -1030,6 +1056,8 @@ function defaultState() {
     last_opened: todayStr(),
     session_preference: { mon:'am', tue:'am', wed:'am', thu:'am', fri:'am', sat:'am', sun:'am' },
     daily_logs: {},
+    weight_log: [],
+    banner_dismissed: '',
     inventory: inv,
     meal_config_overrides: {},
     custom_quotes: [],
@@ -1067,13 +1095,15 @@ function getLog(dateStr) {
     state.daily_logs[dateStr] = {
       session: currentSession(),
       checks: { workout:false, protein:false, sleep:false, water:false },
-      note: '', water_ml: 0, sets: {}
+      note: '', water_ml: 0, sets: {}, meals_done: {}, exercises_done: {}
     };
   }
   const l = state.daily_logs[dateStr];
   if (!l.checks) l.checks = { workout:false, protein:false, sleep:false, water:false };
   if (l.water_ml === undefined) l.water_ml = 0;
   if (!l.sets) l.sets = {};
+  if (!l.meals_done) l.meals_done = {};
+  if (!l.exercises_done) l.exercises_done = {};
   return l;
 }
 function countChecks(log) { return Object.values(log.checks || {}).filter(Boolean).length; }
@@ -1196,6 +1226,13 @@ function renderHome() {
   document.getElementById('homeSessionTime').textContent =
     dow === 0 ? 'Recovery · Sunday Shopping List day' : day.sub + ' · ' + day.duration + ' min';
 
+  // Sunday backup reminder — dismissable for the day only
+  const banner = document.getElementById('sundayBanner');
+  banner.innerHTML = (dow === 0 && state.banner_dismissed !== todayStr())
+    ? '<div class="banner-amber"><span>☀️ Sunday — back up your data. Settings → Export JSON</span>' +
+      '<button onclick="dismissSundayBanner()" aria-label="Dismiss for today">✕</button></div>'
+    : '';
+
   // session toggle — once confirmed, locked for the day (lock lives under today's
   // date in daily_logs, so it clears automatically when the date changes)
   const sess = currentSession();
@@ -1268,7 +1305,41 @@ function confirmSession(sess) {
   state.session_preference[DOW_KEYS[new Date().getDay()]] = sess;
   save();
   closeSheet();
+  document.getElementById('sessionModal').classList.remove('show');
   renderAll();
+}
+
+function dismissSundayBanner() {
+  state.banner_dismissed = todayStr();
+  save();
+  renderHome();
+}
+
+/* ---------- Session lock modal — full-screen, first open each day ----------
+   The lock lives under today's date in daily_logs, so it clears automatically
+   at midnight and the modal is ready again for tomorrow. */
+function sessionLockedToday() {
+  const l = state.daily_logs[todayStr()];
+  return !!(l && l.session_locked);
+}
+function showSessionModal() {
+  const now = new Date();
+  const dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  document.getElementById('sessionBox').innerHTML =
+    '<div class="brand" style="font-size:16px;letter-spacing:.12em;color:var(--amber);font-weight:900">MH370</div>' +
+    '<h1 style="font-size:23px;margin:14px 0 4px">Today is ' + dayNames[now.getDay()] + ' — ' + esc(DAYS[now.getDay()].type) + '.</h1>' +
+    '<div style="color:var(--muted);margin-bottom:8px">Choose your session:</div>' +
+    '<button class="big-session-btn" onclick="pickSession(\'am\')">🌅 Morning</button>' +
+    '<button class="big-session-btn" onclick="pickSession(\'pm\')">🌆 Evening</button>';
+  document.getElementById('sessionModal').classList.add('show');
+}
+function pickSession(sess) {
+  const name = sess === 'pm' ? 'Evening' : 'Morning';
+  document.getElementById('sessionBox').innerHTML =
+    '<h1 style="font-size:22px;margin:0 0 6px">Lock ' + name + ' session for today?</h1>' +
+    '<div style="color:var(--muted)">Cannot be changed until tomorrow.</div>' +
+    '<button class="big-session-btn primary" onclick="confirmSession(\'' + sess + '\')">Confirm — lock ' + name + '</button>' +
+    '<button class="big-session-btn" onclick="showSessionModal()">Back</button>';
 }
 
 /* =====================================================================
@@ -1320,15 +1391,20 @@ function renderWorkout() {
   const log = getLog(todayStr());
   document.getElementById('exerciseList').innerHTML = day.exercises.map((ex, i) => {
     const done = log.sets[i] || [];
+    const completed = !!log.exercises_done[i];
     const isOpen = openExercises.has(i);
-    let h = '<div class="ex' + (isOpen ? ' open' : '') + '">' +
-      '<div class="ex-head" onclick="toggleEx(' + i + ')"><div class="nm">' + (i+1) + '. ' + esc(ex.name) + '</div>' +
+    let h = '<div class="ex' + (isOpen ? ' open' : '') + (completed ? ' completed' : '') + '">' +
+      '<div class="ex-head" onclick="toggleEx(' + i + ')"><div class="nm">' + (completed ? '✅ ' : '') + (i+1) + '. ' + esc(ex.name) + '</div>' +
       '<div class="scheme">' + ex.sets + ' × ' + esc(ex.reps) + '</div></div>' +
       '<div class="sets">';
     for (let s = 0; s < ex.sets; s++) {
-      h += '<button class="set-btn' + (done[s] ? ' done' : '') + '" onclick="toggleSet(' + i + ',' + s + ')">Set ' + (s+1) + (done[s] ? ' ✓' : '') + '</button>';
+      h += '<button class="set-btn' + (done[s] ? ' done' : '') + '"' + (completed ? ' disabled' : '') + ' onclick="toggleSet(' + i + ',' + s + ')">Set ' + (s+1) + (done[s] ? ' ✓' : '') + '</button>';
     }
-    h += '</div><div class="ex-body">' +
+    h += '</div><div style="padding:0 14px 14px">' +
+      (completed
+        ? '<div class="done-note" style="margin-top:0">✓ Exercise complete — locked until tomorrow</div>'
+        : '<button class="btn complete" onclick="askExerciseDone(' + i + ')">Mark Exercise Complete</button>') +
+      '</div><div class="ex-body">' +
       '<h4>What it is</h4><div>' + esc(ex.what) + '</div>' +
       '<h4>Why it\'s in your plan</h4><div>' + esc(ex.why) + '</div>' +
       '<h4>How to do it</h4><ol>' + ex.how.map(st => '<li>' + esc(st) + '</li>').join('') + '</ol>' +
@@ -1348,10 +1424,29 @@ function toggleEx(i) {
 function toggleSet(i, s) {
   event.stopPropagation();
   const log = getLog(todayStr()); // keyed by date → resets at midnight automatically
+  if (log.exercises_done[i]) return; // exercise marked complete — set tracker is locked
   if (!log.sets[i]) log.sets[i] = [];
   log.sets[i][s] = !log.sets[i][s];
   save();
   renderWorkout();
+}
+
+function askExerciseDone(i) {
+  const dow = new Date().getDay();
+  const ex = DAYS[dow].exercises[i];
+  openSheet(
+    '<h3>Confirm exercise complete?</h3>' +
+    '<div style="color:var(--muted);margin-bottom:14px">' + esc(ex.name) + ' — the card and its set tracker will lock until tomorrow.</div>' +
+    '<button class="btn primary" style="width:100%" onclick="confirmExerciseDone(' + i + ')">Confirm</button>' +
+    '<button class="btn" style="width:100%;margin-top:8px" onclick="closeSheet()">Cancel</button>'
+  );
+}
+function confirmExerciseDone(i) {
+  const log = getLog(todayStr());
+  log.exercises_done[i] = true;
+  save();
+  closeSheet();
+  renderAll();
 }
 
 /* =====================================================================
@@ -1368,17 +1463,39 @@ function renderMeals() {
     '<div style="font-size:14px;color:#d6d3d1;margin-top:6px">' + esc(mealDay.whyToday) + '</div>' +
     '<div class="tag" style="margin-top:8px">Targets: 2,700 kcal · 140g protein · 3.5L water · tap any food for WHY</div></div>';
 
-  document.getElementById('mealTimeline').innerHTML = mealsFor(dow, sess).map(m => {
+  const log = getLog(todayStr());
+  document.getElementById('mealTimeline').innerHTML = mealsFor(dow, sess).map((m, idx) => {
     if (m.workout) {
       return '<div class="meal workout-block"><span class="time">' + esc(m.time) + '</span>' +
         '<div class="mlabel">' + (m.label === 'SLEEP' ? '😴 ' : '💪 ') + esc(m.label) + '</div>' +
         '<div class="tag">' + esc(m.workout) + '</div></div>';
     }
-    return '<div class="meal"><span class="time">' + esc(m.time) + '</span>' +
-      '<div class="mlabel">' + esc(m.label) + '</div><div>' +
+    const done = !!log.meals_done[idx];
+    return '<div class="meal' + (done ? ' done' : '') + '"><span class="time">' + esc(m.time) + '</span>' +
+      '<div class="mlabel">' + (done ? '✅ ' : '') + esc(m.label) + '</div><div>' +
       m.items.map(it => '<span class="food-item" onclick="showFoodWhy(this.textContent)">' + esc(it) + '</span>').join('') +
-      '</div></div>';
+      '</div>' +
+      (done
+        ? '<div class="done-note">✓ Done — permanent</div>'
+        : '<button class="btn complete" style="margin-top:10px" onclick="askMealDone(' + idx + ')">Mark as Done ✓</button>') +
+      '</div>';
   }).join('');
+}
+
+function askMealDone(idx) {
+  const m = mealsFor(new Date().getDay(), currentSession())[idx];
+  openSheet(
+    '<h3>Mark ' + esc(m.label) + ' as done?</h3>' +
+    '<div style="color:var(--muted);margin-bottom:14px">This cannot be undone.</div>' +
+    '<button class="btn primary" style="width:100%" onclick="confirmMealDone(' + idx + ')">Confirm</button>' +
+    '<button class="btn" style="width:100%;margin-top:8px" onclick="closeSheet()">Cancel</button>'
+  );
+}
+function confirmMealDone(idx) {
+  getLog(todayStr()).meals_done[idx] = true;
+  save();
+  closeSheet();
+  renderAll();
 }
 
 function showFoodWhy(item) {
@@ -1409,15 +1526,20 @@ function renderAll() {
 }
 renderAll();
 
-/* re-render shortly after midnight so the day flips without reopening */
-setInterval(() => {
+/* re-render shortly after midnight so the day flips without reopening:
+   session lock, set tracker and exercise completions all reset because
+   they live under yesterday's date, and the session modal comes back */
+function newDayCheck() {
   if (state.last_opened !== todayStr()) {
     state.last_opened = todayStr();
     openExercises.clear();
     save();
     renderAll();
+    if (!sessionLockedToday()) showSessionModal();
   }
-}, 60000);
+}
+setInterval(newDayCheck, 60000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) newDayCheck(); });
 </script>
 <script>
 'use strict';
@@ -1551,7 +1673,94 @@ function renderLog() {
   const noteEl = document.getElementById('logNote');
   if (document.activeElement !== noteEl) noteEl.value = log.note || '';
 
+  renderWeight();
   renderCalendar();
+}
+
+/* =====================================================================
+   WEIGHT TRACKER — weekly, permanent entries, line graph from 58 kg
+   ===================================================================== */
+const START_WEIGHT = 58.0;
+
+function lastSundayStr() {
+  const d = new Date();
+  d.setDate(d.getDate() - d.getDay()); // weigh-in week runs Sunday → Saturday
+  return todayStr(d);
+}
+function weightLoggedThisWeek() {
+  return (state.weight_log || []).some(e => e.date >= lastSundayStr());
+}
+
+function weightGraphSVG() {
+  const log = state.weight_log || [];
+  if (!log.length) return '<div class="tag" style="margin:8px 0">No entries yet — the first weigh-in starts the graph.</div>';
+  const w = 320, h = 120, p = 26;
+  const kgs = log.map(e => e.kg);
+  let min = Math.min.apply(null, kgs), max = Math.max.apply(null, kgs);
+  if (max - min < 2) { const mid = (max + min) / 2; min = mid - 1; max = mid + 1; }
+  const x = i => log.length === 1 ? w / 2 : p + i * (w - 2 * p) / (log.length - 1);
+  const y = v => h - p - (v - min) * (h - 2 * p) / (max - min);
+  const pts = log.map((e, i) => x(i).toFixed(1) + ',' + y(e.kg).toFixed(1)).join(' ');
+  const dots = log.map((e, i) =>
+    '<circle cx="' + x(i).toFixed(1) + '" cy="' + y(e.kg).toFixed(1) + '" r="5" fill="#f59e0b" style="cursor:pointer" onclick="showWeightPoint(' + i + ')"/>'
+  ).join('');
+  return '<svg viewBox="0 0 ' + w + ' ' + h + '" style="width:100%;display:block;margin:8px 0">' +
+    '<text x="2" y="' + (y(max) + 4).toFixed(1) + '" fill="#8a8a8a" font-size="10">' + max.toFixed(1) + '</text>' +
+    '<text x="2" y="' + (y(min) + 4).toFixed(1) + '" fill="#8a8a8a" font-size="10">' + min.toFixed(1) + '</text>' +
+    '<polyline points="' + pts + '" fill="none" stroke="#f59e0b" stroke-width="2"/>' + dots + '</svg>';
+}
+
+function showWeightPoint(i) {
+  const e = state.weight_log[i];
+  openSheet('<h3>' + e.date + '</h3><div class="big">' + e.kg.toFixed(1) + ' kg</div>' +
+    '<button class="btn" style="width:100%;margin-top:14px" onclick="closeSheet()">Close</button>');
+}
+
+function renderWeight() {
+  const log = state.weight_log || [];
+  const current = log.length ? log[log.length - 1].kg : START_WEIGHT;
+  const change = current - START_WEIGHT;
+  const changeStr = (change >= 0 ? '+' : '') + change.toFixed(1) + ' kg';
+  document.getElementById('weightBox').innerHTML =
+    '<div class="big" style="font-size:40px;color:var(--amber)">' + current.toFixed(1) +
+      ' <span style="font-size:16px;color:var(--muted)">kg</span></div>' +
+    '<div class="tag" style="margin:4px 0">Start: ' + START_WEIGHT.toFixed(1) + ' kg · Change: ' +
+      '<span style="color:' + (change >= 0 ? 'var(--green)' : 'var(--red)') + '">' + changeStr + '</span></div>' +
+    weightGraphSVG() +
+    (weightLoggedThisWeek()
+      ? '<div class="done-note">✓ Logged this week — next weigh-in Sunday morning</div>'
+      : '<button class="btn primary" style="width:100%" onclick="openLogWeight()">Log this week\'s weight</button>') +
+    '<div class="tag" style="margin-top:8px">Once per week — Sunday morning, before eating. Entries are permanent.</div>';
+}
+
+function openLogWeight() {
+  if (weightLoggedThisWeek()) return;
+  openSheet(
+    '<h3>Log this week\'s weight</h3>' +
+    '<input type="number" id="weightInput" step="0.1" min="30" max="150" inputmode="decimal" placeholder="e.g. 58.5">' +
+    '<button class="btn primary" style="width:100%;margin-top:10px" onclick="askSaveWeight()">Save</button>' +
+    '<button class="btn" style="width:100%;margin-top:8px" onclick="closeSheet()">Cancel</button>'
+  );
+  setTimeout(() => document.getElementById('weightInput').focus(), 50);
+}
+function askSaveWeight() {
+  const v = parseFloat(document.getElementById('weightInput').value);
+  if (isNaN(v) || v < 30 || v > 150) { alert('Enter a valid weight between 30 and 150 kg.'); return; }
+  const kg = Math.round(v * 10) / 10;
+  openSheet(
+    '<h3>Save ' + kg.toFixed(1) + ' kg?</h3>' +
+    '<div style="color:var(--muted);margin-bottom:14px">This entry is permanent and cannot be edited.</div>' +
+    '<button class="btn primary" style="width:100%" onclick="confirmSaveWeight(' + kg + ')">Confirm — save permanently</button>' +
+    '<button class="btn" style="width:100%;margin-top:8px" onclick="closeSheet()">Cancel</button>'
+  );
+}
+function confirmSaveWeight(kg) {
+  if (weightLoggedThisWeek()) { closeSheet(); return; }
+  if (!state.weight_log) state.weight_log = [];
+  state.weight_log.push({ date: todayStr(), kg: kg });
+  save();
+  closeSheet();
+  renderAll();
 }
 
 function toggleCheck(key) {
@@ -1809,6 +2018,9 @@ if ('serviceWorker' in navigator) {
 
 /* initial paint now that all tabs have logic */
 renderAll();
+
+/* session lock — before anything else on the first open of each day */
+if (!sessionLockedToday()) showSessionModal();
 </script>
 </body>
 </html>

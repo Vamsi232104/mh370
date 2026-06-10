@@ -1,4 +1,4 @@
-const CACHE = 'mh370-v1';
+const CACHE = 'mh370-v2';
 const ASSETS = ['/', '/mh370/', '/mh370/index.html', '/mh370/manifest.json', '/mh370/icon.svg'];
 
 self.addEventListener('install', e => {
