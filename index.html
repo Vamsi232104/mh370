@@ -75,7 +75,7 @@ main{padding:16px;padding-bottom:calc(90px + env(safe-area-inset-bottom));max-wi
 /* ===== Session toggle ===== */
 .seg{display:flex;background:var(--bg2);border:1px solid var(--border);border-radius:10px;overflow:hidden}
 .seg button{flex:1;background:none;border:none;color:var(--muted);padding:9px 0;font-size:13px;font-weight:700;cursor:pointer}
-.seg button.on{background:var(--amber);color:#0a0a0a}
+.seg button.on{background:var(--amber);color:#0a0a0a;box-shadow:0 0 10px rgba(245,158,11,.45)}
 
 /* ===== Stats row ===== */
 .stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
@@ -207,8 +207,8 @@ nav button.on{color:var(--amber)}
       <div class="divider"></div>
       <div class="label" style="margin-bottom:6px">Session</div>
       <div class="seg" id="sessionToggle">
-        <button data-session="am">Morning · 6:00 AM</button>
-        <button data-session="pm">Evening · 6:00 PM</button>
+        <button data-session="am" data-label="Morning · 6:00 AM">Morning · 6:00 AM</button>
+        <button data-session="pm" data-label="Evening · 6:00 PM">Evening · 6:00 PM</button>
       </div>
     </div>
     <div class="stats">
@@ -1078,6 +1078,9 @@ function getLog(dateStr) {
 function countChecks(log) { return Object.values(log.checks || {}).filter(Boolean).length; }
 
 function currentSession() {
+  // today's explicit choice (saved under today's date) wins over the weekday preference
+  const todayLog = state.daily_logs[todayStr()];
+  if (todayLog && todayLog.session) return todayLog.session;
   const k = DOW_KEYS[new Date().getDay()];
   return (state.session_preference && state.session_preference[k]) || 'am';
 }
@@ -1192,10 +1195,12 @@ function renderHome() {
   document.getElementById('homeSessionTime').textContent =
     dow === 0 ? 'Recovery · Sunday Shopping List day' : day.sub + ' · ' + day.duration + ' min';
 
-  // session toggle
+  // session toggle — active button gets amber highlight + lock (saved for today)
   const sess = currentSession();
   document.querySelectorAll('#sessionToggle button').forEach(b => {
-    b.classList.toggle('on', b.dataset.session === sess);
+    const active = b.dataset.session === sess;
+    b.classList.toggle('on', active);
+    b.textContent = (active ? '🔒 ' : '') + b.dataset.label;
   });
 
   // stats
