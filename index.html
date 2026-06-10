@@ -1022,24 +1022,8 @@ const DOW_KEYS = ['sun','mon','tue','wed','thu','fri','sat'];
 
 function defaultState() {
   const inv = {};
+  // inventory always starts empty — the user adds stock manually
   INGREDIENTS.forEach(i => { inv[i.key] = { unit: i.unit, stock: 0 }; });
-  // starting stock from the master plan schema
-  Object.assign(inv, {
-    banana:         { unit: 'pieces', stock: 10 },
-    eggs:           { unit: 'pieces', stock: 18 },
-    chicken_breast: { unit: 'grams',  stock: 600 },
-    ground_beef:    { unit: 'grams',  stock: 400 },
-    mutton:         { unit: 'grams',  stock: 0 },
-    tuna_cans:      { unit: 'cans',   stock: 4 },
-    rice_dry:       { unit: 'grams',  stock: 1000 },
-    oats:           { unit: 'grams',  stock: 300 },
-    sweet_potato:   { unit: 'grams',  stock: 600 },
-    greek_yogurt:   { unit: 'grams',  stock: 450 },
-    milk:           { unit: 'ml',     stock: 750 },
-    peanut_butter:  { unit: 'grams',  stock: 200 },
-    broccoli:       { unit: 'grams',  stock: 400 },
-    olive_oil:      { unit: 'ml',     stock: 200 }
-  });
   return {
     start_date: PLAN.startDate,
     last_opened: todayStr(),
