@@ -210,6 +210,7 @@ nav button.on{color:var(--amber)}
         <button data-session="am" data-label="Morning · 6:00 AM">Morning · 6:00 AM</button>
         <button data-session="pm" data-label="Evening · 6:00 PM">Evening · 6:00 PM</button>
       </div>
+      <div id="sessionLocked" style="display:none;text-align:center;padding:10px 0;font-weight:800;color:var(--amber);letter-spacing:.02em"></div>
     </div>
     <div class="stats">
       <div class="stat"><div class="v" id="statStreak">0</div><div class="l">Streak</div></div>
@@ -1195,13 +1196,23 @@ function renderHome() {
   document.getElementById('homeSessionTime').textContent =
     dow === 0 ? 'Recovery · Sunday Shopping List day' : day.sub + ' · ' + day.duration + ' min';
 
-  // session toggle — active button gets amber highlight + lock (saved for today)
+  // session toggle — once confirmed, locked for the day (lock lives under today's
+  // date in daily_logs, so it clears automatically when the date changes)
   const sess = currentSession();
-  document.querySelectorAll('#sessionToggle button').forEach(b => {
-    const active = b.dataset.session === sess;
-    b.classList.toggle('on', active);
-    b.textContent = (active ? '🔒 ' : '') + b.dataset.label;
-  });
+  const todayLog = state.daily_logs[todayStr()];
+  const locked = !!(todayLog && todayLog.session_locked);
+  const toggleEl = document.getElementById('sessionToggle');
+  const lockedEl = document.getElementById('sessionLocked');
+  toggleEl.style.display = locked ? 'none' : 'flex';
+  lockedEl.style.display = locked ? 'block' : 'none';
+  if (locked) {
+    lockedEl.textContent = '🔒 ' + (sess === 'pm' ? 'Evening' : 'Morning') + ' Session';
+  } else {
+    document.querySelectorAll('#sessionToggle button').forEach(b => {
+      b.classList.toggle('on', b.dataset.session === sess);
+      b.textContent = b.dataset.label;
+    });
+  }
 
   // stats
   document.getElementById('statStreak').textContent = computeStreak();
@@ -1237,13 +1248,28 @@ function renderHome() {
 
 document.querySelectorAll('#sessionToggle button').forEach(b => {
   b.addEventListener('click', () => {
-    const k = DOW_KEYS[new Date().getDay()];
-    state.session_preference[k] = b.dataset.session;
-    getLog(todayStr()).session = b.dataset.session;
-    save();
-    renderAll();
+    const log = state.daily_logs[todayStr()];
+    if (log && log.session_locked) return;
+    const sess = b.dataset.session;
+    const name = sess === 'pm' ? 'Evening' : 'Morning';
+    openSheet(
+      '<h3>Lock ' + name + ' session for today?</h3>' +
+      '<div style="color:var(--muted);margin-bottom:14px">You cannot change this until tomorrow.</div>' +
+      '<button class="btn primary" style="width:100%" onclick="confirmSession(\'' + sess + '\')">Confirm — lock ' + name + '</button>' +
+      '<button class="btn" style="width:100%;margin-top:8px" onclick="closeSheet()">Cancel</button>'
+    );
   });
 });
+
+function confirmSession(sess) {
+  const log = getLog(todayStr());
+  log.session = sess;
+  log.session_locked = true;
+  state.session_preference[DOW_KEYS[new Date().getDay()]] = sess;
+  save();
+  closeSheet();
+  renderAll();
+}
 
 /* =====================================================================
    WORKOUT TAB
