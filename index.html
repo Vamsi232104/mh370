@@ -1,0 +1,1019 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#f59e0b">
+<meta name="description" content="MH370 — personal fitness precision instrument">
+<title>MH370</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
+<style>
+:root{
+  --bg:#0a0a0a;
+  --bg2:#121212;
+  --card:#171717;
+  --card2:#1f1f1f;
+  --border:#2a2a2a;
+  --text:#e7e5e4;
+  --muted:#8a8a8a;
+  --amber:#f59e0b;
+  --amber-dim:#b45309;
+  --green:#22c55e;
+  --orange:#f97316;
+  --red:#ef4444;
+  --blue:#3b82f6;
+  --mono:'Courier New',ui-monospace,Menlo,Consolas,monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{
+  background:var(--bg);color:var(--text);
+  font-family:-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;
+  font-size:15px;line-height:1.5;
+  padding-bottom:calc(64px + env(safe-area-inset-bottom));
+}
+h1,h2,h3{font-weight:800;letter-spacing:-.02em}
+.mono{font-family:var(--mono)}
+
+/* ===== Header ===== */
+header{
+  position:sticky;top:0;z-index:50;
+  background:rgba(10,10,10,.92);backdrop-filter:blur(8px);
+  border-bottom:1px solid var(--border);
+  padding:14px 16px;display:flex;align-items:center;justify-content:space-between;
+}
+header .brand{font-size:18px;font-weight:900;letter-spacing:.12em;color:var(--amber)}
+header .brand small{color:var(--muted);font-weight:400;letter-spacing:0;margin-left:8px;font-size:11px}
+#btnSettings{
+  background:none;border:1px solid var(--border);color:var(--muted);
+  border-radius:8px;padding:6px 10px;font-size:16px;cursor:pointer;
+}
+
+/* ===== Layout ===== */
+main{padding:16px;max-width:560px;margin:0 auto}
+.tab-panel{display:none}
+.tab-panel.active{display:block}
+.card{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:12px;padding:14px 16px;margin-bottom:12px;
+}
+.card h2{font-size:13px;text-transform:uppercase;letter-spacing:.1em;color:var(--amber);margin-bottom:10px}
+.label{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.big{font-family:var(--mono);font-size:28px;font-weight:700;color:var(--text)}
+.divider{height:1px;background:var(--border);margin:10px 0}
+
+/* ===== Buttons ===== */
+.btn{
+  background:var(--card2);border:1px solid var(--border);color:var(--text);
+  border-radius:8px;padding:8px 14px;font-size:14px;font-weight:600;cursor:pointer;
+}
+.btn.primary{background:var(--amber);border-color:var(--amber);color:#0a0a0a}
+.btn.small{padding:4px 10px;font-size:12px}
+.btn:active{transform:scale(.97)}
+
+/* ===== Session toggle ===== */
+.seg{display:flex;background:var(--bg2);border:1px solid var(--border);border-radius:10px;overflow:hidden}
+.seg button{flex:1;background:none;border:none;color:var(--muted);padding:9px 0;font-size:13px;font-weight:700;cursor:pointer}
+.seg button.on{background:var(--amber);color:#0a0a0a}
+
+/* ===== Stats row ===== */
+.stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.stat{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;text-align:center}
+.stat .v{font-family:var(--mono);font-size:24px;font-weight:700;color:var(--amber)}
+.stat .l{font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-top:2px}
+
+/* ===== Quote ===== */
+.quote{border-left:3px solid var(--amber);padding:10px 14px;font-style:italic;color:#d6d3d1;background:var(--card);border-radius:0 12px 12px 0;margin-bottom:12px}
+
+/* ===== Alerts ===== */
+.alert-red{border:1px solid var(--red);background:rgba(239,68,68,.08);color:#fca5a5;border-radius:10px;padding:10px 14px;margin-bottom:10px;font-size:14px}
+
+/* ===== Exercise list ===== */
+.ex{background:var(--card);border:1px solid var(--border);border-radius:12px;margin-bottom:10px;overflow:hidden}
+.ex-head{padding:12px 14px;display:flex;justify-content:space-between;align-items:center;cursor:pointer}
+.ex-head .nm{font-weight:700;font-size:15px}
+.ex-head .scheme{font-family:var(--mono);font-size:12px;color:var(--amber)}
+.ex-body{display:none;padding:0 14px 14px;border-top:1px solid var(--border);font-size:14px;color:#d6d3d1}
+.ex.open .ex-body{display:block}
+.ex-body h4{color:var(--amber);font-size:11px;text-transform:uppercase;letter-spacing:.08em;margin:12px 0 4px}
+.ex-body ol{padding-left:18px}
+.ex-body li{margin-bottom:4px}
+.sets{display:flex;gap:8px;padding:0 14px 12px;flex-wrap:wrap}
+.set-btn{
+  flex:1;min-width:60px;background:var(--bg2);border:1px solid var(--border);color:var(--muted);
+  border-radius:8px;padding:8px 0;font-family:var(--mono);font-size:12px;font-weight:700;cursor:pointer;
+}
+.set-btn.done{background:rgba(34,197,94,.15);border-color:var(--green);color:var(--green)}
+.yt-link{display:inline-block;margin-top:10px;color:var(--amber);font-weight:700;font-size:13px;text-decoration:none}
+.yt-link::before{content:'▶ '}
+
+/* ===== Meals ===== */
+.meal{background:var(--card);border:1px solid var(--border);border-radius:12px;margin-bottom:10px;padding:12px 14px}
+.meal .time{font-family:var(--mono);font-size:13px;color:var(--amber);font-weight:700}
+.meal .mlabel{font-weight:700;margin:2px 0 6px}
+.meal.workout-block{border-color:var(--amber-dim);background:rgba(245,158,11,.06)}
+.food-item{
+  display:inline-block;background:var(--bg2);border:1px solid var(--border);border-radius:999px;
+  padding:4px 12px;margin:3px 4px 3px 0;font-size:13px;cursor:pointer;
+}
+.food-item:active{border-color:var(--amber)}
+
+/* ===== Inventory ===== */
+.inv-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)}
+.inv-row:last-child{border-bottom:none}
+.inv-dot{width:10px;height:10px;border-radius:50%;margin-right:10px;flex-shrink:0}
+.dot-green{background:var(--green)}.dot-yellow{background:#eab308}.dot-red{background:var(--red)}
+.inv-name{flex:1;font-size:14px}
+.inv-stock{font-family:var(--mono);font-size:13px;color:var(--muted);margin-right:10px}
+
+/* ===== Log ===== */
+.check-row{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--border);cursor:pointer}
+.check-row:last-child{border-bottom:none}
+.checkbox{width:24px;height:24px;border:2px solid var(--border);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:15px;color:transparent;flex-shrink:0}
+.check-row.on .checkbox{background:var(--green);border-color:var(--green);color:#0a0a0a}
+.water-bar{height:10px;background:var(--bg2);border-radius:999px;overflow:hidden;margin:8px 0}
+.water-bar div{height:100%;background:var(--blue);width:0%;transition:width .3s}
+textarea{
+  width:100%;background:var(--bg2);border:1px solid var(--border);color:var(--text);
+  border-radius:10px;padding:10px;font-size:14px;font-family:inherit;min-height:70px;resize:vertical;
+}
+input[type=text],input[type=number],input[type=date],select{
+  width:100%;background:var(--bg2);border:1px solid var(--border);color:var(--text);
+  border-radius:8px;padding:9px 10px;font-size:14px;
+}
+
+/* ===== Calendar ===== */
+.cal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
+.cal-dow{text-align:center;font-size:10px;color:var(--muted);text-transform:uppercase}
+.cal-day{
+  aspect-ratio:1;border-radius:7px;display:flex;align-items:center;justify-content:center;
+  font-family:var(--mono);font-size:12px;background:var(--bg2);color:var(--muted);cursor:pointer;border:1px solid transparent;
+}
+.cal-day.green{background:rgba(34,197,94,.3);color:#86efac}
+.cal-day.orange{background:rgba(249,115,22,.3);color:#fdba74}
+.cal-day.red{background:rgba(239,68,68,.28);color:#fca5a5}
+.cal-day.rest{background:#1c1c1c;color:#555}
+.cal-day.future{background:transparent;border:1px solid var(--border)}
+.cal-day.today{border:2px solid var(--blue)}
+.cal-day.empty{background:transparent;cursor:default}
+
+/* ===== Modal ===== */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100;display:none;align-items:flex-end;justify-content:center}
+.modal-bg.show{display:flex}
+.modal{
+  background:var(--card);border:1px solid var(--border);border-radius:16px 16px 0 0;
+  width:100%;max-width:560px;max-height:80vh;overflow-y:auto;padding:18px 16px calc(18px + env(safe-area-inset-bottom));
+}
+.modal h3{color:var(--amber);margin-bottom:10px;font-size:16px}
+
+/* ===== Bottom nav ===== */
+nav{
+  position:fixed;bottom:0;left:0;right:0;z-index:60;
+  background:rgba(13,13,13,.97);border-top:1px solid var(--border);
+  display:flex;padding-bottom:env(safe-area-inset-bottom);
+}
+nav button{
+  flex:1;background:none;border:none;color:var(--muted);padding:8px 0 7px;
+  font-size:10px;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;
+}
+nav button .ico{font-size:19px}
+nav button.on{color:var(--amber)}
+
+/* ===== Misc ===== */
+.row{display:flex;gap:10px;align-items:center}
+.row>*{flex:1}
+.tag{font-family:var(--mono);font-size:11px;color:var(--muted)}
+.shop-row{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);font-size:14px}
+.shop-row:last-child{border-bottom:none}
+.shop-need{font-family:var(--mono);color:var(--amber);font-weight:700}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">MH370<small>still flying</small></div>
+  <button id="btnSettings" title="Settings">⚙</button>
+</header>
+
+<main>
+  <!-- ============ HOME ============ -->
+  <section id="tab-home" class="tab-panel active">
+    <div class="card">
+      <div class="label" id="homeDate">—</div>
+      <h1 id="homeDayType" style="font-size:24px;margin:4px 0 2px">—</h1>
+      <div class="tag" id="homeSessionTime">—</div>
+      <div class="divider"></div>
+      <div class="label" style="margin-bottom:6px">Session</div>
+      <div class="seg" id="sessionToggle">
+        <button data-session="am">Morning · 6:00 AM</button>
+        <button data-session="pm">Evening · 6:00 PM</button>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="v" id="statStreak">0</div><div class="l">Streak</div></div>
+      <div class="stat"><div class="v" id="statDay">1</div><div class="l">Day</div></div>
+      <div class="stat"><div class="v" id="statPhase">—</div><div class="l" id="statPhaseLabel">To Phase 1</div></div>
+    </div>
+    <div style="height:12px"></div>
+    <div id="homeAlerts"></div>
+    <div class="quote" id="homeQuote">—</div>
+    <div class="card">
+      <h2>The Journey</h2>
+      <div id="homePhases"></div>
+    </div>
+    <div class="card">
+      <h2>Daily Non-Negotiables</h2>
+      <div class="shop-row"><span>Calories</span><span class="mono">2,700 kcal</span></div>
+      <div class="shop-row"><span>Protein</span><span class="mono">140 g</span></div>
+      <div class="shop-row"><span>Water</span><span class="mono">3.5 L</span></div>
+      <div class="shop-row"><span>Sleep</span><span class="mono">8 hours</span></div>
+      <div class="shop-row"><span>Training</span><span class="mono">Mon–Sat</span></div>
+    </div>
+  </section>
+
+  <!-- ============ WORKOUT ============ -->
+  <section id="tab-workout" class="tab-panel">
+    <div id="workoutHeader"></div>
+    <div id="warmupBox"></div>
+    <div id="exerciseList"></div>
+  </section>
+
+  <!-- ============ MEALS ============ -->
+  <section id="tab-meals" class="tab-panel">
+    <div id="mealsHeader"></div>
+    <div id="mealTimeline"></div>
+  </section>
+
+  <!-- ============ INVENTORY ============ -->
+  <section id="tab-inventory" class="tab-panel">
+    <div class="card">
+      <h2>Inventory</h2>
+      <div class="tag" style="margin-bottom:8px">🟢 2+ days · 🟡 1 day · 🔴 critical</div>
+      <div id="invList"></div>
+    </div>
+    <button class="btn primary" id="btnShopping" style="width:100%">🛒 Sunday Shopping List</button>
+    <div id="shoppingBox" style="margin-top:12px"></div>
+  </section>
+
+  <!-- ============ LOG ============ -->
+  <section id="tab-log" class="tab-panel">
+    <div class="card">
+      <h2 id="logTitle">Today's Log</h2>
+      <div id="logChecks"></div>
+    </div>
+    <div class="card">
+      <h2>Water — 3.5 L target</h2>
+      <div class="water-bar"><div id="waterFill"></div></div>
+      <div class="row" style="margin-top:8px">
+        <button class="btn" id="btnW250">+250 ml</button>
+        <button class="btn" id="btnW500">+500 ml</button>
+        <span class="mono" id="waterText" style="text-align:right;flex:1.2">0 / 3500 ml</span>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Note</h2>
+      <textarea id="logNote" placeholder="How did today go?"></textarea>
+    </div>
+    <div class="card">
+      <div class="cal-head">
+        <button class="btn small" id="calPrev">‹</button>
+        <strong id="calTitle">—</strong>
+        <button class="btn small" id="calNext">›</button>
+      </div>
+      <div class="cal-grid" id="calGrid"></div>
+      <div class="tag" id="calTotals" style="margin-top:10px">—</div>
+    </div>
+  </section>
+</main>
+
+<!-- ============ SETTINGS MODAL ============ -->
+<div class="modal-bg" id="settingsModal">
+  <div class="modal">
+    <h3>Settings</h3>
+    <div class="card">
+      <h2>Add Custom Quote</h2>
+      <input type="text" id="quoteInput" placeholder="Your quote…">
+      <button class="btn primary" id="btnAddQuote" style="margin-top:8px;width:100%">Add Quote</button>
+      <div class="tag" id="quoteCount" style="margin-top:6px"></div>
+    </div>
+    <div class="card">
+      <h2>Edit Meal Plan</h2>
+      <div class="row" style="margin-bottom:8px">
+        <select id="editDay"></select>
+        <select id="editSession"><option value="am">Morning</option><option value="pm">Evening</option></select>
+      </div>
+      <select id="editMeal" style="margin-bottom:8px"></select>
+      <textarea id="editItems" placeholder="One food item per line"></textarea>
+      <button class="btn primary" id="btnSaveMeal" style="margin-top:8px;width:100%">Save Meal (auto-updates inventory)</button>
+    </div>
+    <div class="card">
+      <h2>Start Date</h2>
+      <input type="date" id="startDateInput">
+      <button class="btn" id="btnSaveStart" style="margin-top:8px;width:100%">Save Start Date</button>
+    </div>
+    <div class="card">
+      <h2>Backup</h2>
+      <div class="row">
+        <button class="btn" id="btnExport">Export JSON</button>
+        <button class="btn" id="btnImport">Import JSON</button>
+      </div>
+      <input type="file" id="importFile" accept=".json,application/json" style="display:none">
+    </div>
+    <button class="btn" id="btnCloseSettings" style="width:100%">Close</button>
+  </div>
+</div>
+
+<!-- ============ GENERIC SHEET MODAL (food WHY / day review / add stock) ============ -->
+<div class="modal-bg" id="sheetModal">
+  <div class="modal" id="sheetContent"></div>
+</div>
+
+<nav>
+  <button data-tab="home" class="on"><span class="ico">🏠</span>Home</button>
+  <button data-tab="workout"><span class="ico">💪</span>Workout</button>
+  <button data-tab="meals"><span class="ico">🍽</span>Meals</button>
+  <button data-tab="inventory"><span class="ico">📦</span>Inventory</button>
+  <button data-tab="log"><span class="ico">📋</span>Log</button>
+</nav>
+
+<script>
+'use strict';
+/* =====================================================================
+   MH370 — DATA LAYER
+   All content sourced from MH370_MASTER_PLAN.md v2.0
+   ===================================================================== */
+
+const LS_KEY = 'mh370_v1';
+
+const PLAN = {
+  startDate: '2026-06-11',
+  phases: [
+    { name: 'Phase 1 — Noticeably Different', date: '2026-09-11',
+      desc: 'Face looks less gaunt. Shirts fit differently. First people notice. +3–5 kg lean mass.' },
+    { name: 'Phase 2 — Clearly Training', date: '2026-12-11',
+      desc: 'Biceps visible when flexed. Chest definition starting. Thighs noticeably larger. +5–8 kg lean mass.' },
+    { name: 'Phase 3 — Strong Foundation', date: '2027-06-11',
+      desc: 'Clear muscle definition everywhere. People ask if you train. +8–12 kg lean mass (65–70 kg total).' },
+    { name: 'Ultimate Goal', date: '2027-12-31',
+      desc: 'Full physique transformation. Visible muscle in all areas. The version you are training toward.' }
+  ]
+};
+
+/* ---------- 30 built-in motivational quotes ---------- */
+const QUOTES = [
+  "The plane is still out there. So are you.",
+  "58 kg is where you start. Not where you stay.",
+  "Discipline is remembering what you want.",
+  "You showed up. That already makes you different.",
+  "Pain is just data. Process it and move on.",
+  "The body you want is built in the days you don't feel like it.",
+  "Every rep is a message to your future self.",
+  "You don't need motivation. You need a locked-in plan.",
+  "The weak version of you skips. The MH370 version doesn't.",
+  "Nobody finds the plane by standing still.",
+  "Rest Sunday. Attack Monday. Repeat until different.",
+  "Trust the program. The program is right.",
+  "140g of protein. 8 hours of sleep. No exceptions.",
+  "You chose this. Honor it.",
+  "Muscle is built by showing up when it's inconvenient.",
+  "Distraction cost you 30 days. The gym gives them back.",
+  "Your body is keeping score. Make sure it's a good one.",
+  "Hard days are the ones that count.",
+  "Same plan next week. Heavier weights.",
+  "The plan doesn't care how you feel. Neither does the barbell.",
+  "One year from today, this will all be obvious.",
+  "The food is fuel. The sleep is construction. The gym is the blueprint.",
+  "You are not behind. You are at the start.",
+  "Commitment is deciding in advance so you don't have to decide again.",
+  "What you do at 6 AM defines the rest of the day.",
+  "This is not a phase. This is the direction.",
+  "Two years is nothing. Twelve months is nothing. Start now.",
+  "Skipping is a negotiation you lose every time.",
+  "MH370 — still flying.",
+  "The version of you that stops was never the real one."
+];
+
+/* ---------- Warm-up protocol (every session) ---------- */
+const WARMUP = {
+  steps: [
+    { name: 'Light cardio', time: '3 minutes',
+      how: 'Walk or jog on the spot. Swing your arms. Treadmill at 6 km/h is perfect. Get your heart rate slightly up — not exhausted.',
+      yt: 'https://www.youtube.com/results?search_query=warm+up+cardio+before+gym+beginners' },
+    { name: 'Arm circles', time: '10 each direction',
+      how: 'Stand straight. Extend both arms to the side. Make large circles forward 10 times, then backward 10 times. Gradually make them bigger.',
+      yt: 'https://www.youtube.com/results?search_query=arm+circles+warm+up+exercise+form' },
+    { name: 'Hip circles', time: '10 each direction',
+      how: 'Stand with feet shoulder-width. Put hands on hips. Rotate your hips in a large circle — 10 times clockwise, 10 times counter-clockwise. Like a hula hoop.',
+      yt: 'https://www.youtube.com/results?search_query=hip+circles+warm+up+mobility' },
+    { name: 'Bodyweight squats', time: '10 slow reps',
+      how: 'Stand with feet shoulder-width. Lower yourself slowly by bending your knees — like sitting on a chair — until thighs are parallel to the floor. Stand back up. No weight. Focus on full depth.',
+      yt: 'https://www.youtube.com/results?search_query=bodyweight+squat+form+beginners+depth' },
+    { name: 'Shoulder pass-throughs', time: '10 reps',
+      how: 'Hold a towel or resistance band with both hands wide. Keep arms straight. Raise it from in front of you, over your head, and down behind your back. Return the same way.',
+      yt: 'https://www.youtube.com/results?search_query=shoulder+pass+through+warm+up+towel' },
+    { name: 'Warm-up set', time: '1 set × 12 reps',
+      how: "Take the first exercise of today's session. Load the bar or dumbbells at 40–50% of what you plan to work with. Do 10–15 slow reps. This is not for strength — it is for practice and warmth.",
+      yt: null }
+  ],
+  legExtra: [
+    '5 leg swings per leg, forward and back (hold something for balance)',
+    '5 leg swings per leg, side to side',
+    'Knees and hips need more preparation than shoulders.'
+  ]
+};
+
+/* ---------- Exercise database ---------- */
+const EX = {
+  benchPress: {
+    name: 'Barbell Bench Press', sets: 4, reps: '8–10',
+    what: 'You lie on your back on a flat bench and push a weighted barbell up away from your chest.',
+    why: 'The single best exercise for chest mass. There is no substitute. This is the foundation of your push day. Do not skip this, do not rush it. Every kilogram you add here shows on your chest.',
+    how: ['Lie flat on the bench. Your eyes should be directly under the barbell.',
+      'Grip the bar slightly wider than your shoulders. Wrap your thumbs fully around the bar.',
+      'Plant your feet flat on the floor. Squeeze your shoulder blades together and push them into the bench.',
+      'Lift the bar off the rack and hold it directly above your chest with arms fully extended.',
+      'Lower the bar slowly (2–3 seconds) until it gently touches the middle of your chest.',
+      'Press the bar up explosively until arms are straight. Breathe out as you push up.'],
+    mistake: 'Flaring elbows out at 90 degrees from your body. This destroys your shoulder joints over time. Keep elbows at 45–75 degrees from your torso.',
+    weight: 'Just the bar (20 kg). For your first 2 weeks, use only the bar to learn the movement. Add weight only when form is perfect.',
+    yt: 'https://www.youtube.com/results?search_query=barbell+bench+press+proper+form+beginners+chest'
+  },
+  overheadPress: {
+    name: 'Overhead Press (Barbell)', sets: 4, reps: '8–10',
+    what: 'You stand and press a barbell from shoulder height straight up above your head.',
+    why: 'Builds the front and side of the shoulders (the "cap" that makes shoulders look round and wide). Also builds triceps and upper chest. One of the best upper body exercises for a skinny guy because it adds width and thickness to the top half of your body.',
+    how: ['Stand with feet shoulder-width apart. Hold the bar at shoulder height with hands slightly wider than shoulders.',
+      'The bar should rest on your upper chest/front of shoulders before each rep.',
+      "Look straight ahead. Take a breath and brace your core (tighten your stomach like you're about to get punched).",
+      'Press the bar straight up. As it clears your head, push your head slightly forward so it ends directly over your head.',
+      'Lower the bar back to shoulder height slowly. Repeat.'],
+    mistake: "Leaning back excessively to get the bar up. This dumps the work into your lower back. Keep your body vertical. If you're leaning back, the weight is too heavy.",
+    weight: '20 kg (empty bar). Overhead press is harder than it looks. Start with just the bar.',
+    yt: 'https://www.youtube.com/results?search_query=barbell+overhead+press+standing+form+beginners'
+  },
+  inclineDb: {
+    name: 'Incline Dumbbell Press', sets: 3, reps: '10–12',
+    what: 'Same as bench press but the bench is angled upward (30–45 degrees) and you use two separate dumbbells instead of a barbell.',
+    why: 'Targets the upper chest specifically. The upper chest is what gives you the "full chest" look from the front — the line that runs from your armpit toward your collar. Without incline work, the upper chest stays flat even when the rest develops.',
+    how: ['Set the bench to 30–45 degrees incline. Sit down with a dumbbell on each knee.',
+      'Kick the dumbbells up one at a time as you lie back — bring your knee up to help get them in position.',
+      'Hold the dumbbells at chest level with palms facing forward.',
+      'Press both dumbbells up together until arms are extended above your upper chest.',
+      "Lower slowly back to start. Control the movement — don't just let them drop."],
+    mistake: 'Setting the bench too steep (above 45 degrees). This shifts the work to your shoulders and away from your chest.',
+    weight: '8–10 kg dumbbells per hand. Dumbbells feel unstable at first. Go lighter to learn balance before adding weight.',
+    yt: 'https://www.youtube.com/results?search_query=incline+dumbbell+press+proper+form+upper+chest'
+  },
+  lateralRaises: {
+    name: 'Lateral Raises (Dumbbell)', sets: 3, reps: '12–15',
+    what: 'You stand and raise dumbbells out to the side like wings spreading.',
+    why: 'Isolates the lateral (side) head of the shoulder. This is what creates shoulder width — the "boulder shoulder" look. As a skinny guy, this exercise directly changes how wide you look from the front.',
+    how: ['Stand straight, feet shoulder-width. Hold a dumbbell in each hand at your sides.',
+      'Keep a very slight bend in your elbows throughout.',
+      'Raise both arms out to the side slowly until they are level with your shoulders. Your body should form a T-shape.',
+      'Lower them slowly back down (3 seconds down). Do not let gravity do it for you.',
+      'Do not shrug your shoulders up as you raise. Keep them pressed down.'],
+    mistake: 'Using too heavy a weight and swinging the body to help. Use light weight. The movement should be pure arm raising — no momentum, no body rocking.',
+    weight: '5–6 kg dumbbells. This exercise is always done lighter than you expect.',
+    yt: 'https://www.youtube.com/results?search_query=dumbbell+lateral+raises+proper+form+no+momentum'
+  },
+  pushdown: {
+    name: 'Tricep Pushdown (Cable)', sets: 3, reps: '10–12',
+    what: 'You stand at a cable machine and push a handle or rope downward by straightening your elbows.',
+    why: 'The tricep makes up 2/3 of your upper arm size. If you want bigger arms, triceps are more important than biceps. The pushdown isolates the tricep effectively without needing complex positioning.',
+    how: ['Attach a rope or straight bar to the cable machine at the top pulley.',
+      'Stand facing the machine. Hold the attachment with both hands, elbows at your sides.',
+      'Keep your elbows pinned to your sides — they should not move during the exercise.',
+      'Push the attachment straight down by extending your arms fully. Squeeze the tricep at the bottom.',
+      'Let the cable pull your hands back up slowly to the start position. Control it.'],
+    mistake: 'Letting the elbows flare out or drift forward. If elbows move, the work shifts to your back and shoulders. Pin them to your sides throughout.',
+    weight: 'Set cable to a moderate weight where you can feel the tricep working without your elbows moving. Adjust from there.',
+    yt: 'https://www.youtube.com/results?search_query=cable+tricep+pushdown+rope+proper+form+elbows'
+  },
+  overheadExt: {
+    name: 'Overhead Tricep Extension (Cable)', sets: 3, reps: '10–12',
+    what: 'You hold a cable attachment behind your head and extend your arms upward to straighten them.',
+    why: 'Targets the long head of the tricep — the largest portion that runs down the back of the arm. This is what gives the arm that thick appearance from behind. The pushdown targets a different head. Both are needed for complete tricep development.',
+    how: ['Attach a rope to the low cable pulley. Face away from the machine.',
+      'Hold the rope with both hands behind your head. Elbows pointing toward the ceiling.',
+      'Your upper arms stay vertical and still. Only your forearms move.',
+      'Extend your arms upward until fully straight. Squeeze at the top.',
+      'Lower the rope slowly back behind your head. Feel the stretch in the tricep.'],
+    mistake: 'Letting the upper arms fall forward. Keep them pointing straight up. If they drift forward, the stretch disappears and the long head is no longer loaded.',
+    weight: 'Lighter than pushdown. The position feels unfamiliar. Start light.',
+    yt: 'https://www.youtube.com/results?search_query=overhead+cable+tricep+extension+long+head+form'
+  },
+  closeGrip: {
+    name: 'Close-Grip Bench Press', sets: 4, reps: '6–8',
+    what: 'Barbell bench press with hands at shoulder-width — narrower than normal.',
+    why: 'Shifts most of the work from the chest to the triceps, while also hitting the inner chest. Thursday is the heavier push day — this variation drives tricep and pressing strength.',
+    how: ['Use the same bench and setup as the normal bench press.',
+      'Move your hands closer together — at shoulder-width.',
+      'Lower the bar slowly to your mid/lower chest, elbows staying close to your body.',
+      'Press up until arms are straight. Same technique, narrower grip.'],
+    mistake: 'Gripping too narrow (hands touching). Shoulder-width is close enough — narrower strains the wrists.',
+    weight: 'Start with less weight than normal bench press.',
+    yt: 'https://www.youtube.com/results?search_query=close+grip+bench+press+triceps+form+beginners'
+  },
+  dips: {
+    name: 'Weighted Tricep Dips', sets: 3, reps: 'max reps',
+    what: 'Use the dip bars at your gym. Lower yourself between the bars by bending your elbows behind you, then push back up.',
+    why: 'A heavy compound movement for triceps and chest. Body upright = more tricep. Leaning forward = more chest.',
+    how: ['Grip the dip bars and lift yourself to straight arms.',
+      'Lower yourself by bending your elbows behind you.',
+      'Push back up to straight arms.',
+      'For extra weight, hold a dumbbell between your legs or use a dip belt.'],
+    mistake: 'Dropping too fast and too deep before you have the strength — control the descent.',
+    weight: 'Bodyweight first. Add weight only when you can do clean sets of 10+.',
+    yt: 'https://www.youtube.com/results?search_query=tricep+dips+proper+form+bench+bars+beginners'
+  },
+  bentRow: {
+    name: 'Barbell Bent-Over Row', sets: 4, reps: '8–10',
+    what: 'You hold a barbell and bend forward, then row the bar up toward your stomach.',
+    why: 'Builds back thickness and the "width" of your lats. One of the most effective back exercises. Also strengthens your lower back, which protects you in all other exercises.',
+    how: ['Stand with feet shoulder-width. Hold the bar with an overhand grip slightly wider than shoulders.',
+      'Bend at the hips until your torso is at roughly 45 degrees to the floor. Keep your back flat — not rounded.',
+      'Let the bar hang straight down from your hands.',
+      'Pull the bar up toward your lower chest/upper stomach. Lead with your elbows, not your hands.',
+      'Squeeze your shoulder blades together at the top. Lower the bar slowly.'],
+    mistake: 'Rounding the lower back. A rounded lower back under load causes serious injury. Keep your spine neutral and your chest up. If you cannot, the weight is too heavy.',
+    weight: '40 kg (bar + small plates). You will feel weak at first. Form over weight always.',
+    yt: 'https://www.youtube.com/results?search_query=barbell+bent+over+row+proper+form+back+beginners'
+  },
+  latPulldown: {
+    name: 'Lat Pulldown (Wide Grip)', sets: 4, reps: '10–12',
+    what: 'You sit at a cable machine and pull a wide bar down from above to chest level.',
+    why: 'Targets the latissimus dorsi — the large muscle on the sides of your back that creates the V-taper (the wide-back look). This is the muscle that makes you look broad from the front and back. You cannot get the "wide back" look without training the lats.',
+    how: ['Sit at the lat pulldown machine. Adjust the knee pad so it holds your thighs down.',
+      'Grip the wide bar with hands beyond shoulder-width. Palms facing away from you.',
+      'Lean back very slightly (about 15 degrees). No more than that.',
+      'Pull the bar down to your upper chest. Lead with your elbows — pull them toward your hips.',
+      'Squeeze at the bottom. Slowly let the bar rise back up until arms are fully extended. Feel the stretch.'],
+    mistake: 'Pulling the bar down behind the neck. This strains the cervical spine and adds no benefit. Always pull to the front of your chest.',
+    weight: 'Set the stack to a weight where you can do 10–12 reps with good form — typically 30–50 kg depending on the machine.',
+    yt: 'https://www.youtube.com/results?search_query=lat+pulldown+wide+grip+proper+form+lats+V+taper'
+  },
+  cableRow: {
+    name: 'Seated Cable Row', sets: 3, reps: '10–12',
+    what: 'You sit at a cable machine with your legs extended, and row a handle toward your stomach.',
+    why: 'Builds mid-back thickness — the muscle between your shoulder blades that makes your back look "full" rather than just wide. Also trains your rear delts and traps.',
+    how: ['Sit at the cable row machine. Place your feet on the footpad, legs slightly bent.',
+      'Lean forward to grip the handle with both hands. Your back should be straight.',
+      'Sit up straight. This is your starting position — slight lean forward.',
+      'Pull the handle to your stomach. Lead with your elbows behind you. Squeeze shoulder blades together.',
+      'Slowly extend your arms back forward. Let your shoulder blades separate at the front to get the full stretch.'],
+    mistake: 'Rocking back and forth using your lower back as momentum. Your lower back should not be doing the work. Control the movement with your back muscles.',
+    weight: 'Pick a weight where you can do clean controlled reps — no rocking.',
+    yt: 'https://www.youtube.com/results?search_query=seated+cable+row+proper+form+mid+back+beginners'
+  },
+  facePulls: {
+    name: 'Cable Face Pulls', sets: 3, reps: '12–15',
+    what: 'You pull a cable rope toward your face, splitting the rope apart as you pull.',
+    why: 'Targets rear delts and external rotators — muscles on the back of the shoulder that most beginners never train. These are critical for shoulder health and posture. Without strong rear delts, heavy pressing causes shoulder injuries over time.',
+    how: ['Set the cable machine to face height. Attach a rope handle.',
+      'Stand back and hold the rope with both hands, thumbs pointing away from you.',
+      'Pull the rope directly toward your face, splitting it apart at the end so your hands go to either side of your head.',
+      'Your elbows should be at shoulder height and flaring out, not dropping down.',
+      'Return slowly. Keep tension throughout.'],
+    mistake: 'Letting your elbows drop below shoulder height. This turns it into a row and loses the rear delt focus. Keep elbows up.',
+    weight: 'Very light. This is a small muscle. 10–15 kg on the cable.',
+    yt: 'https://www.youtube.com/results?search_query=cable+face+pulls+rear+delts+proper+form+elbows+high'
+  },
+  barbellCurl: {
+    name: 'Barbell Curl', sets: 3, reps: '8–10',
+    what: 'You hold a barbell and curl it up toward your chest by bending your elbows.',
+    why: 'The primary bicep mass builder. The barbell allows you to lift more weight than dumbbells, meaning more stimulus for growth. This is what builds the bicep "peak" you see when the arm is flexed.',
+    how: ['Stand straight. Hold the bar with an underhand grip, hands shoulder-width.',
+      'Keep your elbows pinned to your sides. They must not move during the curl.',
+      'Curl the bar up toward your chest by bending your elbows. Squeeze the bicep at the top.',
+      'Lower the bar slowly — take 3 full seconds to bring it down. Do not let it drop.',
+      'At the bottom, fully extend your arms before starting the next rep.'],
+    mistake: 'Swinging the back to help get the bar up. This means the weight is too heavy. The bicep is doing zero work. Drop the weight and use strict form.',
+    weight: '30 kg (bar + small plates). Go light enough that elbows stay locked to your sides.',
+    yt: 'https://www.youtube.com/results?search_query=barbell+curl+strict+form+no+swinging+bicep'
+  },
+  hammerCurl: {
+    name: 'Hammer Curl (Dumbbell)', sets: 3, reps: '10–12',
+    what: 'Same as a bicep curl but with dumbbells held vertically (thumbs up) like a hammer.',
+    why: 'Targets the brachialis — a muscle that sits underneath the bicep and pushes it up from below when developed. Also builds forearm thickness. The brachialis is what makes the arm look thick from the side rather than just the front.',
+    how: ['Stand with a dumbbell in each hand. Palms facing each other (neutral grip) — like holding a hammer.',
+      'Keep elbows at your sides.',
+      'Curl both dumbbells up together (or alternating) until bicep is fully contracted.',
+      'Lower slowly. Same principle as regular curl but with the neutral grip throughout.'],
+    mistake: 'Rotating the wrist to a supinated (palm-up) position during the curl. This turns it into a regular curl. Keep palms facing each other the whole time.',
+    weight: '10–12 kg per hand.',
+    yt: 'https://www.youtube.com/results?search_query=hammer+curl+neutral+grip+brachialis+forearm+form'
+  },
+  deadlift: {
+    name: 'Conventional Deadlift', sets: 4, reps: '5–6',
+    what: 'Pick a barbell up off the floor. Set it down. Repeat. Sounds simple. Is the most technical and most rewarding lift you will ever learn.',
+    why: 'Builds everything: entire back, hamstrings, glutes, traps, forearms. Releases more growth hormone than any other exercise.',
+    how: ['Learn the form before loading weight — watch the tutorial first.',
+      'Stand with the bar over mid-foot, feet hip-width.',
+      'Hinge down and grip the bar just outside your legs. Flat back, chest up.',
+      'Brace your core, push the floor away, and stand up with the bar.',
+      'Lower it back down with control by hinging at the hips.'],
+    mistake: 'Rounding the lower back under load. Keep the spine neutral throughout — film yourself or use mirrors.',
+    weight: 'Light to start. Form first. Alan Thrall has the best beginner deadlift video on YouTube.',
+    yt: 'https://www.youtube.com/results?search_query=conventional+deadlift+form+beginners+alan+thrall'
+  },
+  pullUps: {
+    name: 'Pull-Ups (or Assisted)', sets: 3, reps: 'max reps',
+    what: 'Hang from a bar with overhand grip, pull your body up until chin is above the bar.',
+    why: 'The classic bodyweight back-width builder — lats, biceps, and grip all at once.',
+    how: ['Hang from the bar with an overhand grip, hands wider than shoulders.',
+      'Pull your body up until your chin is above the bar.',
+      'Lower yourself with control to a full hang.',
+      'If you cannot do one yet, use the assisted pull-up machine at your gym.',
+      'Sets × max reps means do as many as you can per set.'],
+    mistake: 'Half reps — not going to a full hang at the bottom. Full range builds the full muscle.',
+    weight: 'Bodyweight or assisted machine until you can do clean reps.',
+    yt: 'https://www.youtube.com/results?search_query=how+to+do+pull+ups+beginners+assisted+lat'
+  },
+  dbRow: {
+    name: 'Single-Arm Dumbbell Row', sets: 3, reps: '10–12',
+    what: 'Put one knee and hand on a bench for support. Row a dumbbell up toward your hip with the other arm.',
+    why: 'Better stretch and range of motion than barbell row. Works each side independently and fixes imbalances.',
+    how: ['Place one knee and the same-side hand on a bench.',
+      'Hold a dumbbell in the free hand, arm hanging straight down.',
+      'Row the dumbbell up toward your hip, leading with the elbow.',
+      'Lower slowly to a full stretch. Complete all reps, then switch sides.'],
+    mistake: 'Twisting the torso to heave the weight up. Keep your back flat and parallel to the floor.',
+    weight: 'Start moderate — a weight you can row with zero body twist.',
+    yt: 'https://www.youtube.com/results?search_query=single+arm+dumbbell+row+proper+form+back'
+  },
+  squat: {
+    name: 'Barbell Back Squat', sets: 4, reps: '8–10',
+    what: 'You rest a barbell on your upper back and lower your entire body by bending at the hips and knees, then stand back up.',
+    why: 'The king of all exercises. Nothing builds legs — or total body mass — like the squat. It trains quads, hamstrings, glutes, core, and lower back simultaneously. For a skinny guy, squats are the fastest way to add mass to the lower half of the body.',
+    how: ['Set the bar on the squat rack at upper chest height. Step under it, rest it across your upper traps (upper back). It should NOT be on your neck.',
+      'Step back from the rack. Feet shoulder-width or slightly wider, toes turned slightly out.',
+      'Take a breath, brace your core. Initiate the movement by pushing your hips back and bending your knees simultaneously.',
+      'Lower until your thighs are at least parallel to the floor. Knees should track over your toes — not caving inward.',
+      'Drive through your heels to stand back up. Push the floor away from you. Breathe out on the way up.'],
+    mistake: 'Letting your knees cave inward on the way up. This is a knee injury waiting to happen. Push your knees outward, in the same direction as your toes.',
+    weight: 'Empty bar (20 kg). Spend your first week learning depth and knee tracking before adding any weight.',
+    yt: 'https://www.youtube.com/results?search_query=barbell+back+squat+form+beginners+depth+knees'
+  },
+  rdl: {
+    name: 'Romanian Deadlift', sets: 3, reps: '8–10',
+    what: 'You hold a barbell and lower it down your legs by hinging at the hips, feeling a deep stretch in your hamstrings, then stand back up.',
+    why: 'Directly targets the hamstrings (back of thighs) and glutes. Most beginners have severely underdeveloped hamstrings compared to quads. The Romanian deadlift fixes this imbalance and also trains the lower back.',
+    how: ['Hold the bar with an overhand grip at hip width. Stand tall.',
+      'Keep a slight bend in your knees — this slight bend stays fixed throughout.',
+      'Push your hips back and lower the bar slowly along your legs (bar stays close to your body).',
+      'Lower until you feel a strong stretch in your hamstrings — typically bar at mid-shin level.',
+      'Drive your hips forward to return to standing. Squeeze your glutes at the top.'],
+    mistake: 'Bending the knees too much and turning it into a regular deadlift. Keep that slight knee bend fixed. The movement comes entirely from hinging at the hips.',
+    weight: '40 kg. This exercise requires feeling the hamstring stretch, not lifting heavy.',
+    yt: 'https://www.youtube.com/results?search_query=romanian+deadlift+hamstrings+hip+hinge+form+beginners'
+  },
+  legPress: {
+    name: 'Leg Press (Machine)', sets: 4, reps: '10–12',
+    what: 'You sit in a machine, push a weighted platform away from you with your legs, then bring it back.',
+    why: 'Lets you train legs with heavy weight without the balance and technique demands of the squat. Great for building quad volume and for days when squats feel taxing. Also safer for a complete beginner while still building mass.',
+    how: ['Sit in the machine with your back and head against the pad.',
+      'Place your feet on the platform. Feet shoulder-width, toes slightly out.',
+      'High foot placement = more glutes and hamstrings. Low foot placement = more quads.',
+      'Release the safety handles. Slowly lower the platform toward your chest by bending your knees.',
+      'Stop when knees reach 90 degrees. Push through your entire foot to extend legs back.',
+      'Do not lock your knees out at the top. Keep a slight bend.'],
+    mistake: 'Going down too far and letting your lower back peel off the seat. If your lower back lifts, stop there. That is your maximum range for now.',
+    weight: '40–60 kg. The leg press feels easy compared to squats. You will progress faster here.',
+    yt: 'https://www.youtube.com/results?search_query=leg+press+machine+proper+form+foot+placement+beginners'
+  },
+  legCurl: {
+    name: 'Leg Curl (Machine)', sets: 3, reps: '12–15',
+    what: 'You lie face-down on a machine and curl the pad up toward your glutes by bending your knees.',
+    why: 'The only way to isolate the hamstrings without also loading the lower back. Critical for balanced leg development. Without direct hamstring work, quad dominance leads to knee problems over time.',
+    how: ['Lie face-down on the machine. Position the ankle pad just above your heel.',
+      'Hold the handles under the machine.',
+      'Curl the pad up toward your glutes by bending your knees. Go as high as you can.',
+      'Squeeze the hamstring at the top. Lower slowly — take 3 seconds.',
+      'Do not lift your hips off the pad. If your hips are rising, the weight is too heavy.'],
+    mistake: 'Hips rising off the pad — that means the weight is too heavy.',
+    weight: 'Moderate — full squeeze at the top, 3-second lowering.',
+    yt: 'https://www.youtube.com/results?search_query=lying+leg+curl+machine+hamstrings+proper+form'
+  },
+  lunges: {
+    name: 'Walking Lunges', sets: 3, reps: '10/leg',
+    what: 'You step forward into a long stride, lower your back knee toward the floor, then step the back foot forward and repeat.',
+    why: 'Works each leg independently, which finds and fixes strength imbalances between legs. Also trains balance, coordination, and glutes in a way that machines cannot replicate.',
+    how: ['Stand tall with feet together. You can hold dumbbells or use bodyweight to start.',
+      'Step one foot forward into a long stride — about 70–80 cm.',
+      'Lower your back knee toward the floor until your front thigh is parallel to the ground. Front knee stays over your ankle, not beyond your toes.',
+      'Push through your front heel to stand, bringing your back foot forward to stand.',
+      'Repeat with the opposite leg. This is walking — each step is one rep.'],
+    mistake: 'Front knee tracking past your toes. Keep your shin relatively vertical on the front leg. Short step = knee past toe. Long step = knee stays behind toe.',
+    weight: 'Bodyweight only for the first 2 weeks. Add dumbbells once movement is natural.',
+    yt: 'https://www.youtube.com/results?search_query=walking+lunges+proper+form+knee+tracking+beginners'
+  },
+  calfRaises: {
+    name: 'Standing Calf Raises', sets: 4, reps: '15–20',
+    what: 'You stand on a raised surface and push up onto your toes, then lower your heels below the surface level.',
+    why: 'Calves are visible from the back when someone looks at you. Developed calves are also a marker of athletic physique. The gastrocnemius (the prominent calf muscle) is only fully activated when the knee is straight — which is why standing calf raises are for this muscle specifically.',
+    how: ['Stand on a calf raise machine or on a step with your heels hanging off the edge.',
+      'Push up onto your toes as high as possible. Full contraction — squeeze at the top.',
+      'Lower your heels as far below the step level as possible. Full stretch.',
+      'The full range (stretch to squeeze) is what makes calves grow. Partial reps do almost nothing.',
+      'Pause 1 second at the bottom stretch. Pause 1 second at the top squeeze.'],
+    mistake: 'Partial range of motion — only going halfway down. Calves need a full stretch to get the growth signal. Lower all the way down every rep.',
+    weight: 'Start with bodyweight or light machine load — full range matters more than load.',
+    yt: 'https://www.youtube.com/results?search_query=standing+calf+raises+full+range+of+motion+squeeze+stretch'
+  },
+  bulgarian: {
+    name: 'Bulgarian Split Squat', sets: 3, reps: '10–12/leg',
+    what: 'You elevate your back foot on a bench behind you and squat down on your front leg.',
+    why: 'One of the hardest leg exercises. Builds quads and glutes intensely. Works each leg independently for balanced development.',
+    how: ['Stand about 60 cm in front of a bench, facing away.',
+      'Place the top of your back foot on the bench behind you.',
+      'Lower straight down until your front thigh is near parallel.',
+      'Drive through the front heel to stand back up. Complete all reps, then switch legs.'],
+    mistake: 'Front foot too close to the bench — keeps the knee shooting past the toes. Take a longer stance.',
+    weight: 'Bodyweight first. Add dumbbells when balanced and controlled.',
+    yt: 'https://www.youtube.com/results?search_query=bulgarian+split+squat+proper+form+beginners+rear+foot+elevated'
+  },
+  sumo: {
+    name: 'Sumo Deadlift', sets: 4, reps: '8–10',
+    what: 'Deadlift with a wide stance and toes pointed out significantly.',
+    why: 'Targets inner thighs and glutes more than conventional deadlift — perfect for the volume legs day.',
+    how: ['Stand with a wide stance, toes pointed out significantly.',
+      'Grip the bar with hands inside your knees.',
+      'Flat back, chest up. Brace your core.',
+      'Drive through your heels and stand up with the bar, pushing knees out.',
+      'Lower with control by hinging at the hips.'],
+    mistake: 'Knees caving inward on the way up. Push them out over your toes throughout.',
+    weight: 'Light to start — learn the wide-stance groove before loading.',
+    yt: 'https://www.youtube.com/results?search_query=sumo+deadlift+form+wide+stance+inner+thigh+glutes'
+  },
+  legExt: {
+    name: 'Leg Extension (Machine)', sets: 3, reps: '12–15',
+    what: 'Sit in the machine, extend your legs forward to straight.',
+    why: 'Pure quad isolation — finishes the quads after the heavy compound work.',
+    how: ['Sit in the machine with the pad on your shins, just above the ankles.',
+      'Extend your legs forward until straight. Squeeze the quads at the top.',
+      'Lower slowly with control. No swinging or kicking.'],
+    mistake: 'Using momentum to kick the weight up. Slow and controlled both directions.',
+    weight: 'Moderate — full squeeze at the top of every rep.',
+    yt: 'https://www.youtube.com/results?search_query=leg+extension+machine+proper+form+quads+beginners'
+  },
+  seatedCalf: {
+    name: 'Seated Calf Raise', sets: 4, reps: '15–20',
+    what: 'Same as standing calf raises but seated with a pad on your knees.',
+    why: 'Targets the soleus — the deeper calf muscle underneath the gastrocnemius. Both calf muscles are needed for complete lower-leg development.',
+    how: ['Sit at the machine with the pad resting on your knees.',
+      'Push up onto your toes as high as possible. Squeeze at the top.',
+      'Lower your heels all the way down for a full stretch.',
+      'Pause 1 second at the top and the bottom.'],
+    mistake: 'Partial reps — the soleus also needs the full stretch-to-squeeze range.',
+    weight: 'Moderate machine load with full range of motion.',
+    yt: 'https://www.youtube.com/results?search_query=seated+calf+raise+machine+soleus+proper+form'
+  }
+};
+
+/* ---------- Weekly training split (1=Mon … 6=Sat, 0=Sun) ---------- */
+const DAYS = {
+  1: { type: 'Push Day', sub: 'Chest · Shoulders · Triceps', duration: 65,
+       builds: 'Chest thickness. Shoulder roundness. Tricep definition. The silhouette that changes how shirts fit.',
+       exercises: [EX.benchPress, EX.overheadPress, EX.inclineDb, EX.lateralRaises, EX.pushdown, EX.overheadExt] },
+  2: { type: 'Pull Day', sub: 'Back · Biceps', duration: 65,
+       builds: 'Back width. Back thickness. Bicep peak. Forearms. The V-taper silhouette seen from behind. The posture that makes you stand and sit differently.',
+       exercises: [EX.bentRow, EX.latPulldown, EX.cableRow, EX.facePulls, EX.barbellCurl, EX.hammerCurl] },
+  3: { type: 'Legs Day', sub: 'Quads · Hamstrings · Glutes · Calves', duration: 75,
+       builds: 'Thigh size and separation. Glute development. Calf muscle. Overall lower body mass (50% of total muscle). Leg training releases the most growth hormone — which grows your upper body too.',
+       exercises: [EX.squat, EX.rdl, EX.legPress, EX.legCurl, EX.lunges, EX.calfRaises] },
+  4: { type: 'Push Day — Heavy', sub: 'Chest · Shoulders · Triceps', duration: 65,
+       builds: 'Heavier pressing day. Close-grip work and dips drive tricep and pressing strength on top of Monday\'s foundation.',
+       exercises: [EX.benchPress, EX.closeGrip, EX.overheadPress, EX.dips, EX.lateralRaises, EX.overheadExt] },
+  5: { type: 'Pull Day — Deadlift', sub: 'Back · Biceps · Deadlift focus', duration: 75,
+       builds: 'Deadlift day. The most rewarding lift you will learn — entire back, hamstrings, glutes, traps, forearms. Releases more growth hormone than any other exercise.',
+       exercises: [EX.deadlift, EX.pullUps, EX.dbRow, EX.facePulls, EX.barbellCurl, EX.hammerCurl] },
+  6: { type: 'Legs Day — Volume', sub: 'Quads · Glutes · Hamstrings · Calves', duration: 75,
+       builds: 'Volume legs day. Unilateral and wide-stance work targets inner thighs, glutes and the deeper calf muscles.',
+       exercises: [EX.sumo, EX.bulgarian, EX.legPress, EX.legExt, EX.legCurl, EX.seatedCalf] },
+  0: { type: 'Full Rest', sub: 'Recovery', duration: 0,
+       builds: 'Sunday is the only rest day. Muscle is built during recovery, not during the workout. This is not negotiable.',
+       exercises: [] }
+};
+
+/* ---------- Weekly meal plan — morning (am) & evening (pm) sessions ---------- */
+const MEALS = {
+  1: { // MONDAY — Push (Beef or Mutton)
+    whyToday: 'Why beef/mutton today: highest creatine of any meat (5g/kg). Creatine fuels explosive pressing. More creatine = more reps before failure on bench press and overhead press.',
+    am: [
+      { time: '5:45 AM', label: 'Pre-workout', items: ['2 bananas', 'black coffee'] },
+      { time: '6:00 AM', label: 'WORKOUT', workout: 'Push · 65 min' },
+      { time: '7:30 AM', label: 'Post-workout', items: ['3 scrambled eggs', '1.5 cups cooked rice', '100g ground beef', 'spinach'] },
+      { time: '12:30 PM', label: 'Lunch', items: ['200g ground beef', '1 cup cooked rice', 'broccoli', '1 tbsp olive oil'] },
+      { time: '4:00 PM', label: 'Snack', items: ['150g Greek yogurt', '1 banana', '30g peanut butter'] },
+      { time: '7:00 PM', label: 'Dinner', items: ['150g beef steak or mutton chops', '200g sweet potato', 'mixed salad'] },
+      { time: '10:00 PM', label: 'SLEEP', workout: '8 hours' }
+    ],
+    pm: [
+      { time: '7:00 AM', label: 'Breakfast', items: ['3 eggs', '2 slices whole wheat toast', '1 glass milk'] },
+      { time: '12:30 PM', label: 'Lunch', items: ['200g ground beef or mutton mince', '1.5 cups rice', 'spinach', 'olive oil'] },
+      { time: '4:00 PM', label: 'Pre-workout', items: ['2 bananas', 'black coffee'] },
+      { time: '6:00 PM', label: 'WORKOUT', workout: 'Push · 65 min' },
+      { time: '7:30 PM', label: 'Post-workout dinner', items: ['200g beef mince', '1.5 cups rice', 'broccoli', 'olive oil'] },
+      { time: '9:00 PM', label: 'Snack', items: ['150g Greek yogurt', 'oats', 'banana'] },
+      { time: '10:30 PM', label: 'SLEEP', workout: '8 hours' }
+    ]
+  },
+  2: { // TUESDAY — Pull (Chicken)
+    whyToday: 'Why chicken today: 31g protein per 100g — the highest protein-to-calorie ratio of any meat. Clean fuel for pull day volume.',
+    am: [
+      { time: '5:45 AM', label: 'Pre-workout', items: ['1 banana', '20g almonds'] },
+      { time: '6:00 AM', label: 'WORKOUT', workout: 'Pull · 65 min' },
+      { time: '7:30 AM', label: 'Post-workout', items: ['200g chicken breast', '1.5 cups rice', '2 boiled eggs', 'spinach'] },
+      { time: '12:30 PM', label: 'Lunch', items: ['250g chicken thigh', '1 cup rice', 'mixed salad', 'olive oil'] },
+      { time: '4:00 PM', label: 'Snack', items: ['200g Greek yogurt', '1 banana', '3 tbsp oats'] },
+      { time: '7:00 PM', label: 'Dinner', items: ['200g chicken breast', '200g sweet potato', 'broccoli'] },
+      { time: '10:00 PM', label: 'SLEEP', workout: '8 hours' }
+    ],
+    pm: [
+      { time: '7:00 AM', label: 'Breakfast', items: ['60g oats', 'milk', '1 banana', '2 boiled eggs'] },
+      { time: '12:30 PM', label: 'Lunch', items: ['250g chicken breast', '1.5 cups rice', 'mixed salad', 'olive oil'] },
+      { time: '4:00 PM', label: 'Pre-workout', items: ['1 banana', '30g peanut butter', 'black coffee'] },
+      { time: '6:00 PM', label: 'WORKOUT', workout: 'Pull · 65 min' },
+      { time: '7:30 PM', label: 'Post-workout dinner', items: ['250g chicken breast', '2 cups rice', 'broccoli', 'olive oil'] },
+      { time: '9:00 PM', label: 'Snack', items: ['1 glass milk', '3 tbsp oats', 'peanut butter'] },
+      { time: '10:30 PM', label: 'SLEEP', workout: '8 hours' }
+    ]
+  },
+  3: { // WEDNESDAY — Legs (Tuna + Fish)
+    whyToday: 'Why tuna and fish today: omega-3 protects your joints on leg day and is anti-inflammatory for squat recovery.',
+    am: [
+      { time: '5:45 AM', label: 'Pre-workout', items: ['2 bananas', '2 tbsp peanut butter'] },
+      { time: '6:00 AM', label: 'WORKOUT', workout: 'Legs · 75 min' },
+      { time: '7:30 AM', label: 'Post-workout', items: ['2 cans tuna', '2 cups rice', '2 eggs', 'spinach', 'olive oil'] },
+      { time: '12:30 PM', label: 'Lunch', items: ['2 cans tuna', '250g sweet potato', 'salad', 'olive oil'] },
+      { time: '4:00 PM', label: 'Snack', items: ['200g Greek yogurt', '1 banana', '3 tbsp oats'] },
+      { time: '7:00 PM', label: 'Dinner', items: ['200g fish fillet', '1.5 cups rice', 'broccoli'] },
+      { time: '10:00 PM', label: 'SLEEP', workout: '8 hours' }
+    ],
+    pm: [
+      { time: '7:00 AM', label: 'Breakfast', items: ['3 eggs', '60g oats', 'milk', '1 banana'] },
+      { time: '12:30 PM', label: 'Lunch', items: ['2 cans tuna', '250g sweet potato', 'salad', 'olive oil'] },
+      { time: '4:00 PM', label: 'Pre-workout', items: ['2 bananas', 'black coffee'] },
+      { time: '6:00 PM', label: 'WORKOUT', workout: 'Legs · 75 min' },
+      { time: '7:30 PM', label: 'Post-workout dinner', items: ['200g fish fillet', '2 cups rice', 'broccoli', 'olive oil'] },
+      { time: '9:00 PM', label: 'Snack', items: ['1 glass milk', 'peanut butter', '1 banana'] },
+      { time: '10:30 PM', label: 'SLEEP', workout: '8 hours' }
+    ]
+  },
+  4: { // THURSDAY — Push Heavy (Eggs + Chicken + Pasta)
+    whyToday: 'Why pasta today: lower glycemic index — sustained energy on depleted glycogen for the heavy push session. Eggs are BV 100 — perfect protein.',
+    am: [
+      { time: '5:45 AM', label: 'Pre-workout', items: ['2 bananas', 'black coffee'] },
+      { time: '6:00 AM', label: 'WORKOUT', workout: 'Push heavy · 65 min' },
+      { time: '7:30 AM', label: 'Post-workout', items: ['3 eggs', '200g chicken breast', '1.5 cups rice', 'spinach'] },
+      { time: '12:30 PM', label: 'Lunch', items: ['200g chicken breast', '80g dry pasta cooked', 'tomato', 'olive oil'] },
+      { time: '4:00 PM', label: 'Snack', items: ['3 boiled eggs', '1 banana', '20g almonds'] },
+      { time: '7:00 PM', label: 'Dinner', items: ['200g chicken breast', '80g dry pasta cooked', 'broccoli'] },
+      { time: '10:00 PM', label: 'SLEEP', workout: '8 hours' }
+    ],
+    pm: [
+      { time: '7:00 AM', label: 'Breakfast', items: ['3-egg omelette', '2 slices toast', '1 glass milk'] },
+      { time: '12:30 PM', label: 'Lunch', items: ['200g chicken', '80g dry pasta cooked', 'tomato sauce', 'olive oil'] },
+      { time: '4:00 PM', label: 'Pre-workout', items: ['2 bananas', 'black coffee'] },
+      { time: '6:00 PM', label: 'WORKOUT', workout: 'Push heavy · 65 min' },
+      { time: '7:30 PM', label: 'Post-workout dinner', items: ['3 eggs', '200g chicken', '80g dry pasta', 'broccoli'] },
+      { time: '9:00 PM', label: 'Snack', items: ['200g Greek yogurt', 'banana', 'oats'] },
+      { time: '10:30 PM', label: 'SLEEP', workout: '8 hours' }
+    ]
+  },
+  5: { // FRIDAY — Pull Deadlift (Beef or Mutton + Tuna)
+    whyToday: 'Why beef/mutton + tuna today: creatine fuels the deadlift, omega-3 from tuna protects the joints under the heaviest load of the week.',
+    am: [
+      { time: '5:45 AM', label: 'Pre-workout', items: ['2 bananas', 'black coffee'] },
+      { time: '6:00 AM', label: 'WORKOUT', workout: 'Pull deadlift · 75 min' },
+      { time: '7:30 AM', label: 'Post-workout', items: ['2 cans tuna', '150g ground beef', '2 cups rice', 'spinach'] },
+      { time: '12:30 PM', label: 'Lunch', items: ['200g beef steak or mutton chops', '1 cup rice', '150g sweet potato', 'salad'] },
+      { time: '4:00 PM', label: 'Snack', items: ['2 cans tuna on 2 slices toast', '1 glass milk', 'Greek yogurt'] },
+      { time: '7:00 PM', label: 'Dinner', items: ['200g ground beef or mutton mince', '80g dry pasta', 'broccoli', 'olive oil'] },
+      { time: '10:00 PM', label: 'SLEEP', workout: '8 hours' }
+    ],
+    pm: [
+      { time: '7:00 AM', label: 'Breakfast', items: ['3 eggs', '2 slices toast', '1 glass milk', '1 banana'] },
+      { time: '12:30 PM', label: 'Lunch', items: ['200g beef steak or mutton', '1.5 cups rice', 'salad', 'olive oil'] },
+      { time: '4:00 PM', label: 'Pre-workout', items: ['2 cans tuna', 'banana', 'black coffee'] },
+      { time: '6:00 PM', label: 'WORKOUT', workout: 'Pull deadlift · 75 min' },
+      { time: '7:30 PM', label: 'Post-workout dinner', items: ['200g ground beef or mutton', '2 cups rice', 'broccoli', 'olive oil'] },
+      { time: '9:00 PM', label: 'Snack', items: ['1 glass milk', '2 cans tuna', 'Greek yogurt'] },
+      { time: '10:30 PM', label: 'SLEEP', workout: '8 hours' }
+    ]
+  },
+  6: { // SATURDAY — Legs Volume (Chicken + Eggs)
+    whyToday: 'Why chicken + eggs + oats today: highest protein-to-calorie ratio plus beta-glucan fiber from oats — slow glucose release for the long volume session.',
+    am: [
+      { time: '5:45 AM', label: 'Pre-workout', items: ['60g oats', 'milk', '1 banana'] },
+      { time: '6:00 AM', label: 'WORKOUT', workout: 'Legs volume · 75 min' },
+      { time: '7:30 AM', label: 'Post-workout', items: ['3 eggs', '200g chicken breast', '2 cups rice', 'spinach'] },
+      { time: '12:30 PM', label: 'Lunch', items: ['250g chicken thigh', '250g sweet potato', 'broccoli', 'olive oil'] },
+      { time: '4:00 PM', label: 'Snack', items: ['3 boiled eggs', '1 banana', '200g Greek yogurt'] },
+      { time: '7:00 PM', label: 'Dinner', items: ['200g chicken breast', '1.5 cups rice', 'mixed vegetables', 'olive oil'] },
+      { time: '10:00 PM', label: 'SLEEP', workout: '8 hours' }
+    ],
+    pm: [
+      { time: '7:00 AM', label: 'Breakfast', items: ['60g oats', 'milk', '2 eggs', '1 banana'] },
+      { time: '12:30 PM', label: 'Lunch', items: ['250g chicken breast', '250g sweet potato', 'broccoli', 'olive oil'] },
+      { time: '4:00 PM', label: 'Pre-workout', items: ['2 bananas', '30g oats', 'black coffee'] },
+      { time: '6:00 PM', label: 'WORKOUT', workout: 'Legs volume · 75 min' },
+      { time: '7:30 PM', label: 'Post-workout dinner', items: ['3 eggs', '200g chicken', '2 cups rice', 'broccoli'] },
+      { time: '9:00 PM', label: 'Snack', items: ['1 glass milk', 'peanut butter', 'banana'] },
+      { time: '10:30 PM', label: 'SLEEP', workout: '8 hours' }
+    ]
+  },
+  0: { // SUNDAY — Rest
+    whyToday: 'Sunday is the only rest day. Eat normally, hit your protein, hydrate, sleep. Recovery is where the muscle is actually built. Also: shopping day — check the Sunday Shopping List in Inventory.',
+    am: [
+      { time: 'All day', label: 'Rest & Recover', items: ['hit 140g protein', 'drink 3.5L water', 'sleep 8 hours'] },
+      { time: 'Any time', label: 'Shopping', workout: 'Sunday Shopping List → Inventory tab' }
+    ],
+    pm: [
+      { time: 'All day', label: 'Rest & Recover', items: ['hit 140g protein', 'drink 3.5L water', 'sleep 8 hours'] },
+      { time: 'Any time', label: 'Shopping', workout: 'Sunday Shopping List → Inventory tab' }
+    ]
+  }
+};
+
+/* ---------- Food WHY reference (longest match keys first) ---------- */
+const FOOD_WHY = [
+  { match: ['sweet potato'], name: 'Sweet potato',
+    why: 'Highest potassium. Prevents cramping. Replenishes electrolytes.', when: 'Wed, Thu, Fri, Sat' },
+  { match: ['peanut butter'], name: 'Peanut butter',
+    why: '90 kcal per tbsp. Dense sustained fuel for long sessions.', when: 'Every day' },
+  { match: ['greek yogurt', 'yogurt'], name: 'Greek yogurt',
+    why: 'Casein protein — slow release, feeds muscle for hours.', when: 'Every day' },
+  { match: ['olive oil'], name: 'Olive oil',
+    why: 'Anti-inflammatory. Adds healthy calorie-dense fat without bulk.', when: 'Every day' },
+  { match: ['chicken'], name: 'Chicken breast',
+    why: '31g protein / 100g. Highest protein-to-calorie ratio.', when: 'Tue, Thu, Sat' },
+  { match: ['mutton'], name: 'Mutton',
+    why: 'Similar creatine to beef — the best beef alternative for push days and deadlift days. ~26g protein per 100g. Very common in Mauritius.', when: 'Mon, Fri (beef days)' },
+  { match: ['beef'], name: 'Beef',
+    why: 'Highest creatine (5g/kg). Fuels explosive pressing.', when: 'Mon, Fri' },
+  { match: ['tuna'], name: 'Tuna',
+    why: 'Omega-3 to protect joints on leg days.', when: 'Wed, Fri' },
+  { match: ['fish'], name: 'Fish fillet',
+    why: 'Additional omega-3. Anti-inflammatory for squat recovery.', when: 'Wed' },
+  { match: ['egg', 'omelette'], name: 'Eggs',
+    why: 'BV 100 — perfect protein. Choline for muscle nerve signals.', when: 'Every day' },
+  { match: ['milk'], name: 'Milk',
+    why: 'Complete protein + calcium for bone density under load.', when: 'Every day' },
+  { match: ['rice'], name: 'White rice',
+    why: 'Fast carb — spikes insulin post-workout to drive nutrients into muscle.', when: 'Every day' },
+  { match: ['oats'], name: 'Oats',
+    why: 'Beta-glucan fiber — slow glucose release for sustained workout energy.', when: 'Sat + mornings' },
+  { match: ['pasta'], name: 'Pasta',
+    why: 'Lower glycemic index. Sustained energy on depleted glycogen (Thursday).', when: 'Thu, Fri' },
+  { match: ['banana'], name: 'Banana',
+    why: 'Fast glucose + potassium. Pre-workout energy without heaviness.', when: 'Every day' },
+  { match: ['broccoli'], name: 'Broccoli',
+    why: 'Sulforaphane reduces muscle damage. Vitamin C for joint collagen. Daily non-negotiable.', when: 'Every day' },
+  { match: ['spinach'], name: 'Spinach',
+    why: 'Iron for oxygen delivery. Nitrates improve workout performance 3–5%.', when: 'Every day' },
+  { match: ['almond'], name: 'Almonds',
+    why: 'Vitamin E antioxidant. Magnesium for muscle contraction.', when: 'Tue, Thu' },
+  { match: ['coffee'], name: 'Coffee',
+    why: 'Caffeine raises strength by 3–7%, reduces perceived effort. No sugar.', when: 'Pre-workout' },
+  { match: ['toast', 'bread'], name: 'Whole wheat bread',
+    why: 'Carb base for breakfast and tuna snacks. Rice substitute in a pinch (2–3 slices).', when: 'Mon, Thu, Fri' }
+];
+
+/* ---------- Inventory master list (unit + weekly estimate) ---------- */
+const INGREDIENTS = [
+  { key: 'banana',          name: 'Banana',          unit: 'pieces', weekly: 20 },
+  { key: 'eggs',            name: 'Eggs',            unit: 'pieces', weekly: 30 },
+  { key: 'chicken_breast',  name: 'Chicken breast',  unit: 'grams',  weekly: 1400 },
+  { key: 'chicken_thigh',   name: 'Chicken thigh',   unit: 'grams',  weekly: 500 },
+  { key: 'ground_beef',     name: 'Ground beef',     unit: 'grams',  weekly: 750 },
+  { key: 'beef_steak',      name: 'Beef steak',      unit: 'grams',  weekly: 350 },
+  { key: 'mutton',          name: 'Mutton',          unit: 'grams',  weekly: 0 }, // flexible — replaces beef as needed
+  { key: 'tuna_cans',       name: 'Tuna (cans)',     unit: 'cans',   weekly: 10 },
+  { key: 'fish_fillet',     name: 'Fish fillet',     unit: 'grams',  weekly: 400 },
+  { key: 'rice_dry',        name: 'Rice (dry)',      unit: 'grams',  weekly: 1400 },
+  { key: 'oats',            name: 'Oats',            unit: 'grams',  weekly: 400 },
+  { key: 'sweet_potato',    name: 'Sweet potato',    unit: 'grams',  weekly: 1200 },
+  { key: 'pasta_dry',       name: 'Pasta (dry)',     unit: 'grams',  weekly: 400 },
+  { key: 'bread_slices',    name: 'Bread (slices)',  unit: 'slices', weekly: 8 },
+  { key: 'greek_yogurt',    name: 'Greek yogurt',    unit: 'grams',  weekly: 900 },
+  { key: 'milk',            name: 'Milk',            unit: 'ml',     weekly: 1500 },
+  { key: 'peanut_butter',   name: 'Peanut butter',   unit: 'grams',  weekly: 400 },
+  { key: 'almonds',         name: 'Almonds',         unit: 'grams',  weekly: 80 },
+  { key: 'olive_oil',       name: 'Olive oil',       unit: 'ml',     weekly: 200 },
+  { key: 'broccoli',        name: 'Broccoli',        unit: 'grams',  weekly: 800 },
+  { key: 'spinach',         name: 'Spinach',         unit: 'grams',  weekly: 300 },
+  { key: 'mixed_salad_veg', name: 'Mixed salad veg', unit: 'grams',  weekly: 400 }
+];
+
+/* Logic added in Parts 2 & 3 */
+</script>
+<script>
+/* MH370 app logic — Parts 2 & 3 */
+</script>
+</body>
+</html>
